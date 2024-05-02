@@ -1,0 +1,15 @@
+/**  @file naming_debug.c
+ *   
+ *   @brief Set the global debug level for the naming service.
+ *   
+ *   @author Ron Oldfield (raoldfi\@sandia.gov).
+ *   $Revision$.
+ *   $Date$.
+ *
+ */
+
+#include "stats-debug.h"
+#include "support/logger/logger.h"
+
+/* set to LOG_UNDEFINED -- log commands will use default level */
+log_level stats_debug_level = LOG_UNDEFINED; 

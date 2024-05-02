@@ -1,0 +1,94 @@
+8
+
+dir
+1573
+svn+ssh://raoldfi@software.sandia.gov/home/raoldfi/repos/lwfs/trunk/testing/xchange-tests
+svn+ssh://raoldfi@software.sandia.gov/home/raoldfi/repos/lwfs
+
+
+
+2007-04-24T18:06:55.632149Z
+1404
+raoldfi
+has-props
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+385ae4e5-3006-0410-94d9-fca899295522
+
+storage_servers.in
+file
+
+
+
+
+2007-01-23T05:05:36.000000Z
+b455fcf5aa90ef8939b4bd02bb015c5e
+2007-01-23T05:06:53.534601Z
+1073
+raoldfi
+
+ecl
+dir
+
+drisc
+dir
+
+local-opts.ggo
+file
+
+
+
+
+2007-01-23T05:05:36.000000Z
+efe58bd16e432944aacf145d32d9425d
+2007-01-23T05:06:53.534601Z
+1073
+raoldfi
+
+Makefile.am
+file
+
+
+
+
+2007-04-08T04:30:04.000000Z
+ad0b03ce085339528b5d06f99effdcfc
+2007-04-24T18:06:55.632149Z
+1404
+raoldfi
+
+README
+file
+
+
+
+
+2007-02-20T18:40:39.000000Z
+db1bc2e4abaffc06f069bd5eb2cb75f5
+2007-02-14T19:58:35.589585Z
+1232
+gflofst
+
+xchange-tests.c
+file
+
+
+
+
+2007-02-20T18:40:39.000000Z
+1bd52da1d871658b685c862e0593026a
+2007-02-14T02:20:47.424930Z
+1226
+gflofst
+

@@ -1,0 +1,24 @@
+/**
+ *  Modeling the behavior of checkpoints. 
+ * 
+ *  Test codes
+ *     - mpiio-nton-write: Write 1 file/process using MPI-IO
+ *     - mpiio-nto1-write: Write 1 shared fle using MPI-IO
+ *     - posix-nton-write: Write 1 file/process using POSIX-IO
+ *     - posix-nto1-write: Write 1 shared fle using POSIX-IO, and lseek
+ *     - lwfs-nton-write: Write 1 object/process using LWFS
+ */
+
+
+/*
+ * @defgroup internal_api LWFS internal interfaces
+ * 
+ * These consist mainly of convenience interfaces that helped with 
+ * the development of the lightweight file systems.  These include
+ *    - the logging API, 
+ *    - the asynchrounous RPC API (the communication layer), 
+ *    - the internal APIs for the storage server,
+ *    - the internal APIs for the name server
+ * 
+ */
+

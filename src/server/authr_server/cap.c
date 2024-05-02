@@ -1,0 +1,139 @@
+/*-------------------------------------------------------------------------*/
+/**  @file cap.c
+ *   
+ *   @brief Implementation of the capability APIs. 
+ *   
+ *   This implementation of the security API for the LWFS uses the 
+ *   OpenSSL cryptographic library to generate and verify credentials
+ *   and capabilities.  
+ *
+ *   @author Ron Oldfield (raoldfi\@sandia.gov).
+ *   $Revision: 1189 $.
+ *   $Date: 2007-02-07 14:30:35 -0700 (Wed, 07 Feb 2007) $.
+ *
+ */
+
+#include <openssl/rand.h>
+#include <openssl/hmac.h>
+#include <stdio.h>
+
+#include "cap.h"
+
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+
+#ifdef __APPLE__
+#undef HAVE_XDR_SIZEOF
+#endif
+
+#ifndef HAVE_XDR_SIZEOF
+unsigned long xdr_sizeof ();
+#endif
+
+static int seeded = 0; 
+
+/*========= EXPORTED API ==============*/
+
+/**
+ * @brief generate a cryptographically strong pseudo 
+ * random key. 
+ *
+ * @param key The result.
+ */
+int generate_cap_key(
+		lwfs_key *key)
+{
+	int status; 
+
+	/* we may have to initialize the random number generator */
+	if (seeded == -1) {
+		lwfs_key seedkey; 
+
+		/* FIXME: for now, we just seed the RNG with 
+		 * the pseudo random generator. This is probably
+		 * not good enough though. */
+		RAND_pseudo_bytes((unsigned char *)seedkey, sizeof(lwfs_key)); 
+		
+		RAND_seed(seedkey, sizeof(lwfs_key)); 
+	}
+		
+
+	/* generate a cryptographically strong key of 
+	 * length key->length */
+	status = RAND_bytes((unsigned char *)(*key), sizeof(lwfs_key)); 
+
+	/* Rand returns 1 on success, 0 otherwise */ 
+	if (status == 0) {
+		return LWFS_ERR_GENKEY; 
+	}
+
+	return LWFS_OK;
+}
+
+/**
+ * @brief Generate a capability.
+ */
+int generate_cap(
+		const lwfs_key *key,
+		const lwfs_cap_data *data, 
+		lwfs_cap *cap)
+{
+	unsigned int mac_size; 
+	unsigned int cap_size; 
+
+	/* copy the data portion to the credential */
+	memcpy(&cap->data, data, sizeof(lwfs_cap_data)); 
+
+	/* zero out the mac */
+	memset((void *)(cap->mac), 0, sizeof(lwfs_mac)); 
+
+	/* get the size of the cap data */
+	cap_size = xdr_sizeof((xdrproc_t)&xdr_lwfs_cap_data, (lwfs_cap_data *)data);
+
+	/* generate the MAC using the provided key and 
+	 * the sha1 hash function */
+	HMAC(EVP_sha1(), key, sizeof(lwfs_key), 
+			(unsigned char *)data, cap_size, 
+			(unsigned char *)cap->mac, &mac_size); 
+
+	return LWFS_OK; 
+}
+
+/**
+ * @brief Verify a capability. 
+ *
+ * We verify a capability the same way we verify a credential. 
+ * We generate a new MAC with the provided key that be identical
+ * to the MAC inside the capability.  If the MACs do not match, 
+ * either the key is wrong, or the capability is not valid. In 
+ * either case we return a \ref LWFS_ERR_VERIFYCAP error code. 
+ *
+ * @param key @input The symmetric key used to generate the original cap.
+ * @param cap @input The capability to verify. 
+ */
+int verify_cap(
+		const lwfs_key *key,
+		const lwfs_cap *cap)
+{
+	lwfs_mac newmac; 
+
+	unsigned int datasize = sizeof(lwfs_cap_data); 
+	unsigned int macsize; 
+
+	/* zero out the mac */
+	memset((void *)(newmac), 0, sizeof(lwfs_mac)); 
+	
+	HMAC(EVP_sha1(),(unsigned char *)(*key), sizeof(lwfs_key), 
+			(unsigned char *)(&cap->data), datasize, 
+			(unsigned char *)(newmac), &macsize); 
+
+	/* compare the original mac to the new mac */
+	if (memcmp(cap->mac, newmac, sizeof(lwfs_mac)) != 0) {
+		return LWFS_ERR_VERIFYCAP; 
+	}
+
+	return LWFS_OK; 
+}
+
+

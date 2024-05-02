@@ -1,0 +1,143 @@
+    /**
+     *   @addtogroup txn_api
+     *
+     *   LWFS provides a transaction mechanism that enables clients to implement 
+     *   ACID-compliant data storage.  This transaction mechanism is
+     *   visible to clients through the lwfs_txn family of functions.  Internally,
+     *   LWFS transactions are implemented through locking and journaling.
+     *   Journals provide a mechanism to ensure atomicity and durability for transactions, while 
+     *   locks enable consistency and isolation for concurrent transactions.  
+     *   To better understand how a client might use these mechanisms to 
+     *   implement ACID-compliant transactions, we describe each of the ACID 
+     *   properties below, along with examples of how a client might use the 
+     *   LWFS transaction mechanisms to ensure those properties. 
+     *       
+     *       - \b Atomicity: At the end of a transaction, either all of the 
+     *            operations attached to that transaction complete successfully, or the system appears as 
+     *            if none of those operations executed.  LWFS transactions use the 
+     *            classical two-phase commit protocol, which preserves atomicity
+     *            by requiring all participating servers 
+     *            to agree on the final state of the system before changes 
+     *            become permanent. Any one of the participating servers 
+     *            can abort the entire transaction, which tells the 
+     *            client managing the transaction to revert the system to the 
+     *            previous state.  In the case of failure of the managing client,
+     *            any involved LWFS server can take over the management of the transaction.
+     *            
+     *       - \b Consistency: The consistency property implies that an 
+     *            external process should not see changes 
+     *            made by an in-progress transaction.  LWFS transactions imply locks on 
+     *            the objects involved.  In keeping with the lightweight philosophy, applications
+     *            can choose what consistency semantics they would like LWFS to provide, or construct
+     *            consistency layers on top of LWFS to encapsulate their desired semantics.
+     *
+     *       - \b Isolation: For any two transactions \f$T_i\f$ and \f$T_j\f$, either 
+     *            \f$T_i\f$ appears to complete before \f$T_j\f$ starts, or 
+     *            \f$T_j\f$ appears to complete before \f$T_i\f$ starts. 
+     *            A client that wants isolation can use the transaction API 
+     *            to synchronize access to objects used by operations 
+     *            in the transaction. 
+     *
+     *       - \b Durability: On successful completion of a transaction, the changes 
+     *            made inside a transaction persist, even in the event of a client failure.  
+     *            Durable changes to data are provided as a side effect of transactions.  The 
+     *            servers involved in a transaction each maintain a persistent journal of the actions
+     *            associated with the transaction.  Should the client managing the transaction
+     *            fail during a commit operation, any of the associated servers can reconstruct
+     *            the transaction server set and commit the transaction on behalf of the original 
+     *            client.
+     *
+     *   @note  
+     *          It is important to note that there is no requirement of ACID 
+     *          compliance for file system implementations.  In fact,
+     *          some file systems may sacrifice some or all of the ACID properties
+     *          to achieve higher performance.  It is also not a 
+     *          requirement that clients desiring ACID-compliant data storage
+     *          use the LWFS transaction API.  
+     *          Some file system implementations may choose to experiment 
+     *          with other mechanisms that provide equivalent
+     *          functionality. The transaction API is simply provided as a convenience. 
+     *
+     *
+     *  \b Example - Single client
+     *
+     *  The following example pseudocode shows how a single client might use the transaction API to 
+     *  create several objects (on potentially several different storage servers).
+     *
+     *  \code
+
+         txn_id = lwfs_txn_begin();
+
+	 lwfs_create_obj (txn_id, obj0, cap0, &req);
+         .
+         .
+	 lwfs_create_obj (txn_id, objN, capN, &req);
+ 
+         commit_code = lwfs_txn_prepare_commit (txn_id);
+
+	 lwfs_txn_end (txn_id, commit_code);
+        
+         \endcode
+        
+	Notes:
+	
+	- If called with a non-NULL <tt>lwfs_txn_id</tt>, <tt>lwfs_create_obj</tt> records the destination server for the object in the transaction ID structure.  In this manner, when <tt>lwfs_txn_prepare_commit</tt> is called, the transaction structure contains a list of all storage servers involved in the transaction.
+
+	 - <tt>lwfs_txn_prepare_commit()</tt> is phase 1 of the two-phase commit process, and is implemented by contacting all servers in the transaction and asking each one to prepare for commit.  By convention, each server is provided with the list of all servers in the transaction; this enables any server to complete the transaction if the client fails during the commit process.  This function must await all answers before it can return to the caller with an indication of whether or not phase 1 completed successfully.
+
+	 - Behavior of phase 2 commit
+	 
+
+	 \b Example - Multiplie clients
+
+	 The main difference in this example is that multiple client processes will participate in the transaction.  Each client process must use the same OID in its transaction ID structure; this can be solved by a broadcast operation from the client that acquires the OID.. Selecting that client is also an issue but we assume that such sets of clients will either be a known subset (to the subset) of all nodes in the application, or will comprise all available nodes; in either case, an election process can determine who should acquire and broadcast the OID.
+
+	 The transaction structure at each client does not contain all participating storage servers - the transitive closure across all clients must be computed.
+
+	 \code
+
+         txn_id = lwfs_txn_begin();
+         broadcast (txn_id);
+
+	 lwfs_create_obj (txn_id, obj0, cap0, &req);
+         .
+         .
+	 lwfs_create_obj (txn_id, objN, capN, &req);
+ 
+         commit_code = lwfs_txn_prepare_commit (txn_id);
+
+	 lwfs_txn_end (txn_id, commit_code);
+        
+         \endcode
+
+	 Notes:
+
+	 - Behavior of phase 1 commit, computation of storage server set, election of coordinator
+	 
+
+	<b>Server behaviors</b>
+
+        - Journals for each storage server
+
+	- 
+
+        <b>Transaction semantics</b>
+
+        Consistency and isolation semantics for LWFS transactions are as follows:
+
+	 - A transaction is an implicit write lock on any involved objects.  There is no explicit locking API.  Objects locked through an open transaction by clients that fail will remain locked until a storage server detects the failed client and either commits or rolls back changes to those objects.
+
+	 - The result of concurrent writes to an object within a single transaction is undefined.  In practice, the last write will persist, but developers are warned not to depend on this behavior.  A process outside a transaction attempting to modify an object currently locked by a transaction will either fail or block waiting for the transactional lock to be released (this behavior is customizable through the lwfs_txn_prefs() API).
+
+	 - Read semantics are also customizable.  Reads from within a transaction always return the most up-to-date value of the object <i>from the point of view of the transaction</i>.  Reads from outside a transaction can have one of three outcomes: the value of the data from before the beginning of the transaction is returned, the read blocks until the transaction is complete, or the "live" data from the transaction can be returned along with an indication that the object is currently part of a transaction and the data	therefore may change.
+
+
+	\b Journals
+
+	- The authorization server, storage servers and naming servers all maintain journals.  Clients do not have to maintain node-local journals; they simply create transaction IDs and associate them with the calls to the storage servers.
+
+        - By default, optimistic writes will be performed.  Journal records will be written to facilitate rollbacks but object updates will also be performed.
+
+
+     *
+     */

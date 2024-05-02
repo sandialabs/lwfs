@@ -1,0 +1,3 @@
+option "authr-pid"   - "PID of the authr server" long default="124" optional
+option "authr-nid"   - "NID of the authr server" long default="0" optional
+option "authr-cache-caps" - "Cache caps on the client" off flag

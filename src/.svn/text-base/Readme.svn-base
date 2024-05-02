@@ -1,0 +1,16 @@
+Contents of the "src" directory: 
+
+   - logger/                  (the logging library)
+   - rpc/                      (the rpc library)
+   - security/               (the security library)
+   - include/lwfs/         (generic type definitions)
+   - storage_service/   (the storage service client/server libs)
+   - naming_service/   (the naming service client/server libs)
+   - auth_service/       (the authorization service client/server libs)
+
+- Source Files: 
+   - auth_args.x    (XDR type definitions for the remote method arguments)
+   - auth_clnt.h     (prototypes for the client-side methods)
+   - auth_clnt.c     (implementation of the client-side methods)
+   - auth_srvr.h     (prototypes for the server-side methods)
+   - auth_srvr.c     (implementation of the server-side methods)

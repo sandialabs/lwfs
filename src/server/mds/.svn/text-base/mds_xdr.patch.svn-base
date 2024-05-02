@@ -1,0 +1,32 @@
+5a6
+> #include <lwfs/logger.h>
+243a245,246
+> 		 
+> 	 log_debug("xdr_mds_dirop_args: encoding args->dir\n");
+245c248,249
+< 	 if (!xdr_pointer (xdrs, (char **)&objp->dir, sizeof (lwfs_obj_ref), (xdrproc_t) xdr_lwfs_obj_ref))
+---
+> 	 if (!xdr_pointer (xdrs, (char **)&objp->dir, sizeof (lwfs_obj_ref), (xdrproc_t) xdr_lwfs_obj_ref)) {
+> 		 log_fatal("xdr_mds_dirop_args: failed on lwfs_obj_ref\n");
+247c251,257
+< 	 if (!xdr_mds_name (xdrs, &objp->name))
+---
+> 	 }
+> 
+> 	 log_debug("xdr_mds_dirop_args: encoding args->name\n");
+> 
+> 	 if (!xdr_mds_name (xdrs, &objp->name)) {
+> 		 log_fatal("xdr_mds_dirop_args: failed on mds_name\n");
+> 		 fprintf(stderr, "failed on mds_name\n");
+249c259,265
+< 	 if (!xdr_pointer (xdrs, (char **)&objp->cap, sizeof (lwfs_cap), (xdrproc_t) xdr_lwfs_cap))
+---
+> 	 }
+> 
+> 	 log_debug("xdr_mds_dirop_args: encoding args->cap\n");
+> 
+> 	 if (!xdr_pointer (xdrs, (char **)&objp->cap, sizeof (lwfs_cap), (xdrproc_t) xdr_lwfs_cap)) {
+> 		 fprintf(stderr, "failed on lwfs_cap\n");
+> 		 log_fatal("xdr_mds_dirop_args: failed on lwfs_cap\n");
+250a267
+> 	 }

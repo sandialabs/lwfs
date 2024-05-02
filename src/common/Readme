@@ -1,0 +1,3 @@
+Contains code for LWFS services that is needed by both the 
+client and the server.  All code in the common directory
+is compiled using the client compile flags. 

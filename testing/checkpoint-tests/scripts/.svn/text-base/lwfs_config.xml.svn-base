@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<lwfs>
+  <config>
+        <authr>
+                <server-id nid="0" pid="124"/>
+                <cred uid="50359" gid="500"/>
+        </authr>
+        <naming>
+                <server-id nid="0" pid="126"/>
+                <namespace name="sysio.test"/>
+        </naming>
+        <storage>
+                <server-list>
+                        <server-id nid="0" pid="122"/>
+                </server-list>
+                <chunk-size default="104857600"/>
+                <attr-method default="strict"/>
+        </storage>
+  </config>
+</lwfs>
+

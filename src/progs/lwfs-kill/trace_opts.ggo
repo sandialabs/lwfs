@@ -1,0 +1,4 @@
+option "trace-fname" - "Path to tracing file" string default="trace.sddf" optional
+option "trace-enable" - "Enable tracing" off flag
+option "trace-disable" - "Disable tracing" off flag
+option "trace-ftype" - "Type of tracing file (0=binary, 1=ASCII)" int default="0" optional

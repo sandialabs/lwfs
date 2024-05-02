@@ -1,0 +1,10 @@
+K 10
+svn:ignore
+V 57
+autom4te.cache
+configure
+Makefile.in
+Makefile
+aclocal.m4
+
+END

@@ -1,0 +1,798 @@
+$FT = "f";
+$DT = "d";
+
+while ($_ = $ARGV[0]) {
+	shift;
+	last if /^--$/;
+	if (/^-no_float/) {$FT=""; $DT="";}
+}
+
+### BEGIN ###
+&initialize;
+&prologue;
+
+&arith( "add", 		"+", 			"i u ul l $FT $DT");
+&arith( "sub", 		"-", 	 		"i u ul l $FT $DT");
+&arith(	"mul", 		"*",	 		"i u ul l $FT $DT");
+&arith(	"div", 		"/",	 		"i u ul l $FT $DT");
+&arith(	"mod", 		"%",	 		"i u ul l");
+&arith(	"xor", 		"^",	 		"i u ul l");
+&arith(	"and", 		"&",	 		"i u ul l");
+&arith(	"or", 		"|",	 		"i u ul l");
+&arith(	"lsh", 		"<<", 			"i u ul l");
+&arith(	"rsh", 		">>", 			"i u ul l");
+
+###########################################################################
+#	 		Conversions
+#
+# 	name		from-type		to-types
+&cvt(	"cvu2",		"u",			"i ul l");
+&cvt(	"cvl2",		"l",			"i u ul $FT $DT");
+&cvt(	"cvul2",	"ul",			"i u l p");
+&cvt(	"cvp2",		"p",			"ul");
+&cvt(	"cvf2",		"f",			"l $DT") unless ("$FT" eq "");
+&cvt(	"cvd2",		"d",			"l $FT") unless ("$DT" eq "");
+&cvt(	"cvi2",	 	"i",			"u ul l");
+
+
+
+###########################################################################
+# 		Standard unary operations
+#
+# 	name		c-equiv operation	types
+&unary(	"com",		"~",			"i u ul l");
+&unary(	"not",		"!",			"i u ul l");
+&unary(	"mov",		" ",			"i u ul l p $FT $DT");
+&unary(	"neg",		"-",			"i u ul l $FT $DT");
+
+
+###########################################################################
+# 		Return operations
+#
+#	name		types
+&ret  ("ret",		"i u ul l p $FT $DT");
+
+
+###########################################################################
+# 			Memory operations.
+#
+# 	name	types 				offset required		ld/st
+
+&mem(	"st",	"c uc s us i u ul p $FT $DT", 	"aligned_offset", 	"store");
+&mem(	"ld",	"c uc s us i u ul p $FT $DT", 	"aligned_offset", 	"load");
+
+# TODO: unaligned memory ops
+
+###########################################################################
+# 			Branch operations
+#
+# 	name		c-equiv operation	types
+
+&branch("beq",		"==",			"i u ul l p $FT $DT");
+&branch("bne",		"!=",			"i u ul l p $FT $DT");
+&branch("blt",		"<",			"i u ul l p $FT $DT");
+&branch("ble",		"<=",			"i u ul l p $FT $DT");
+&branch("bgt",		">",			"i u ul l p $FT $DT");
+&branch("bge",		">=",			"i u ul l p $FT $DT");
+
+
+# TODO: add conditonal move, boolean expressions
+
+###########################################################################
+#
+# 			Indirect jump support.	
+#
+&emit_jump();
+
+#### DONE ####
+&epilogue;
+
+
+###########################################################################
+# Emittor routines.
+#
+
+sub arith {
+	local($name, $op, $tlist) = @_;
+	local(@tlist);
+
+	@tlist = split('\s+', $tlist);
+	foreach (@tlist) {
+		&emit_arith($_, $name, $op, 1);
+	}
+}
+
+sub ret {
+	local($name, $tlist) = @_;
+	local(@tlist);
+
+	@tlist = split('\s+', $tlist);
+	foreach (@tlist) {
+		&emit_ret($_, $name, $op);
+	}
+}
+
+sub unary {
+	local($name, $op, $tlist) = @_;
+	local(@tlist);
+
+	@tlist = split('\s+', $tlist);
+	foreach (@tlist) {
+		&emit_unary($_, $name, $op);
+	}
+}
+
+sub cvt {
+	local($name, $from_type, $tlist) = @_;
+	local(@tlist);
+
+	@tlist = split('\s+', $tlist);
+	foreach (@tlist) {
+		&emit_cvt($_, $from_type, $name);
+	}
+}
+
+
+sub mem {
+	local($name, $tlist, $offset, $op) = @_;
+	local(@tlist);
+
+	@tlist = split('\s+', $tlist);
+	foreach (@tlist) {
+		if($op eq "load") {
+			&emit_load($_, $name, $offset);
+		} else {
+			&emit_store($_, $name, $offset);
+		}
+	}
+}
+
+sub branch {
+	local($name, $op, $tlist) = @_;
+	local(@tlist);
+
+	@tlist = split('\s+', $tlist);
+	foreach (@tlist) {
+		&emit_branch($_, $name, $op, 1);
+	}
+}
+
+# need to do conversion tests
+# also do mov: get rid of set(?)
+
+
+# 
+# Emit prefix unary instructions
+#
+sub emit_unary {
+	local($t, $name, $op) = @_;
+	local($insn, $insni);
+
+	$insn = "$name$t";
+	$insni = "$insn" . "i";
+
+	$cast1 = ($t eq "p") ? "(unsigned long)" : "";
+	$upt = "\U$t\E";
+print<<EOF;
+    {
+	$type{$t} expected_result;
+	$type{$t} result;
+	$type{$t}(*func)($type{$t});
+	dr_reg_t	rd$t;
+
+	/* reg <- $op reg */
+	if (verbose) printf(" - $insn\\n");
+        dr_proc_params(c, "$insn", DR_$upt, "%$t");
+		if(!dr_getreg(c, &rd$t, $type_enum{$t}, DR_TEMP))
+			dr_fatal("out of registers!");
+
+        	dr_$insn(c, rd$t, dr_param(c, 0));
+        	dr_ret$t(c, rd$t);
+        func = ($type{$t}(*)($type{$t})) dr_end(c);
+        expected_result = $op s1$t;
+	result = func(s1$t);
+	if (expected_result != result) {
+	    printf("Failed test for $insn $c_print_formats{$t} , expected $c_print_formats{$t}, got $c_print_formats{$t}\\n", $cast1 s1$t, $cast1 expected_result, $cast1 result);
+	    dr_errors++;
+	    dr_dump(c);
+	}
+    }
+
+EOF
+}
+
+# 
+# Emit conversions
+#
+sub emit_cvt {
+	local($t, $from_type, $name) = @_;
+	local($insn, $insni);
+
+	$insn = "$name$t";
+	$insni = "$insn" . "i";
+
+	$cast1 = ($t eq "p") ? "(unsigned long)" : "";
+	$cast2 = ($from_type eq "p") ? "(unsigned long)" : "";
+	$upt = "\U$t\E";
+print<<EOF;
+    {
+	$type{$t} expected_result;
+	$type{$t} result;
+	$type{$t}(*func)($type{$from_type});
+	dr_reg_t	rd$t;
+
+	/* reg <- ($type{$t}) reg */
+	if (verbose) printf(" - $insn\\n");
+        dr_proc_params(c, "$insn",  DR_$upt, "%$from_type");
+		if(!dr_getreg(c, &rd$t, $type_enum{$t}, DR_TEMP))
+			dr_fatal("out of registers!");
+
+        	dr_$insn(c, rd$t, dr_param(c, 0));
+        	dr_ret$t(c, rd$t);
+        func = ($type{$t}(*)($type{$from_type})) dr_end(c);
+        expected_result = ($type{$t}) s1$from_type;
+	result = func(s1$from_type);
+	if (expected_result != result) {
+	    printf("Failed test for $insn, got $c_print_formats{$t}, expected $c_print_formats{$t} for ($type{$t}) $c_print_formats{$from_type}\\n", $cast1 result, $cast1 expected_result, $cast2 s1$from_type);
+	    dr_errors++;
+	    dr_dump(c);
+	}
+    }
+EOF
+}
+
+# Nulary operations
+sub emit_ret {
+	local($t, $name) = @_;
+	local($insn, $insni);
+
+	$insn = "$name$t";
+	$insni = "$insn" . "i";
+
+	$cast1 = ($t eq "p") ? "(unsigned long)" : "";
+	$upt = "\U$t\E";
+print<<EOF;
+    {
+	/* ret reg */
+	$type{$t}(*func)($type{$t});
+	$type{$t} result;
+	$type{$t} expected_result;
+	if (verbose) printf(" - $insn\\n");
+        dr_proc_params(c, "$insn",  DR_$upt, "%$t");
+        	dr_$insn(c, dr_param(c, 0));
+        func = ($type{$t}(*)($type{$t})) dr_end(c);
+	result = func(s1$t);
+	expected_result = s1$t;
+	if (expected_result != result) {
+	    printf("Failed test for $insn, expected $c_print_formats{$t}, got $c_print_formats{$t}\\n", $cast1 expected_result, $cast1 result);
+	    dr_errors++;
+	    dr_dump(c);
+	}
+    }
+    {
+	/* ret imm */
+	$type{$t}(*func)();
+	$type{$t} result;
+
+	if (verbose) printf(" - $insni\\n");
+        dr_proc(c, "$insni", DR_$upt);
+        	dr_$insni(c, s1$t);
+        func = ($type{$t}(*)()) dr_end(c);
+	result = func();
+
+	if (s1$t != result) {
+	    printf("Failed test for $insni\\n");
+	    dr_errors++;
+	    dr_dump(c);
+	}
+    }
+
+EOF
+}
+
+# Test jump on labels and on memory locations.
+#
+sub emit_jump {
+	local($t, $name) = @_;
+	local($insn,$insni);
+
+	$insn = "dr_jv";
+	$insni = "dr_jp";
+
+print<<EOF;
+    {
+	int (*func)();
+	dr_reg_t rdp;
+	/* ret reg */
+	if (verbose) printf(" - $insn\\n");
+        dr_proc(c, "$insn", DR_I);
+		l = dr_genlabel(c);
+		$insn(c, l);
+			dr_retii(c, 0);
+		dr_label(c, l);
+        		dr_retii(c, 1);
+        func = (int(*)()) dr_end(c);
+	if (func() != 1) {
+	    printf("Failed test for $insn\\n");
+	    dr_errors++;
+	    dr_dump(c);
+	}
+
+	/* ret imm */
+	if (verbose) printf(" - $insni\\n");
+        dr_proc(c, "$insni", DR_I);
+	{
+		static void * linked_addr;
+		dr_reg_t zero;
+		l = dr_genlabel(c);
+		dr_dmark(c, &linked_addr, l);
+		if(!dr_getreg(c, &rdp, DR_P, DR_TEMP))
+			dr_fatal("out of registers!");
+		if(!dr_getreg(c, &zero, DR_P, DR_TEMP))
+			dr_fatal("out of registers!");
+
+		dr_setp(c, zero, 0);
+		dr_ldpi(c, rdp, zero, (long) &linked_addr);
+
+		$insni(c, rdp);
+			dr_retii(c, 0);
+		dr_label(c, l);
+        		dr_retii(c, 1);
+	}
+        func = (int(*)()) dr_end(c);
+	if (func() != 1) {
+	    printf("Failed test for $insni\\n");
+	    dr_errors++;
+	    dr_dump(c);
+	}
+    }
+
+EOF
+}
+
+#
+# Emit infix binary arith instructions.
+#
+sub emit_arith {
+	local($t, $name, $op) = @_;
+	local($insn,$insni, $s2);
+
+	$insn = "$name$t";
+	$insni = "$insn" . "i";
+
+	$s2 = ($name eq "lsh" || $name eq "rsh") ?
+		"shift$t" :
+		"s2$t";
+	$pf2 = ($name eq "lsh" || $name eq "rsh") ?
+		"%d" :
+		"$c_print_formats{$t}";
+	$pf = ($name eq "lsh" || $name eq "rsh") ?
+		"$hex_print_formats{$t}" :
+		"$c_print_formats{$t}";
+		
+        $upt = "\U$t\E";
+print<<EOF;
+    {
+	$type{$t} expected_result;
+	$type{$t} result;
+	$type{$t}(*func)($type{$t},$type{$t});
+	dr_reg_t	rd$t;
+	/* reg <- (reg $op reg) */
+	if (verbose) printf(" - $insn\\n");
+        dr_proc_params(c, "$insn",  DR_$upt, "%$t%$t");
+		if(!dr_getreg(c, &rd$t, $type_enum{$t}, DR_TEMP))
+			dr_fatal("out of registers!");
+
+        	dr_$insn(c, rd$t, dr_param(c, 0), dr_param(c, 1));
+        	dr_ret$t(c, rd$t);
+        func = ($type{$t}(*)($type{$t},$type{$t})) dr_end(c);
+	result = func(s1$t, $s2);
+        expected_result = (s1$t $op $s2);
+	if (expected_result != result) {
+	    printf("Failed test for $c_print_formats{$t} $insn $pf2, expected $pf, got $pf\\n", s1$t, $s2, expected_result, result);
+	    dr_errors++;
+	    dr_dump(c);
+	}
+
+    }
+EOF
+	return if($t eq "f" || $t eq "d"); 
+
+print<<EOF;
+
+    {
+	$type{$t} expected_result;
+	$type{$t} result;
+	$type{$t}(*func)($type{$t},$type{$t});
+	dr_reg_t	rd$t;
+	/* reg <- (reg $op imm) */
+	if (verbose) printf(" - $insni\\n");
+        dr_proc_params(c, "$insni", DR_$upt, "%$t");
+		if(!dr_getreg(c, &rd$t, $type_enum{$t}, DR_TEMP))
+			dr_fatal("out of registers!");
+
+        	dr_$insni(c, rd$t, dr_param(c, 0), $s2);
+        	dr_ret$t(c, rd$t);
+        func = ($type{$t}(*)($type{$t},$type{$t})) dr_end(c);
+        expected_result = (s1$t $op $s2);
+	result = func(s1$t, $s2);
+	if (expected_result != result) {
+	    printf("Failed test for $c_print_formats{$t} $insni (imm $pf2), expected $c_print_formats{$t}, got $c_print_formats{$t}\\n", s1$t, $s2, expected_result, result);
+	    dr_errors++;
+	    dr_dump(c);
+	}
+    }
+
+EOF
+}
+
+#
+# Emit infix binary arith instructions.
+#
+sub emit_branch {
+	local($t, $name, $op) = @_;
+	local($insn,$insni);
+
+	$insn = "$name$t";
+	$insni = "$insn" . "i";
+	if ($t eq "p") {
+	   $cast = "(long)";
+	} else {
+	   $cast = "";
+	}
+
+        $upt = "\U$t\E";
+print<<EOF;
+    {
+	int (*func)($type{$t},$type{$t});
+	int result;
+	if (verbose) printf(" - $insn\\n");
+	/* reg <- (reg $op reg) */
+        dr_proc_params(c, "$insn", DR_$upt, "%$t%$t");
+		l = dr_genlabel(c);
+        	dr_$insn(c, dr_param(c, 0), $cast dr_param(c, 1), l);
+        		dr_retii(c, 0);
+		dr_label(c, l);
+			dr_retii(c, 1);
+        func = (int (*)($type{$t},$type{$t})) dr_end(c);
+        di = (s1$t $op s2$t);
+	result = func(s1$t, s2$t);
+	if (di != result) {
+	    printf("Failed test for $insn\\n");
+	    dr_errors++;
+	    dr_dump(c);
+	}
+    }
+EOF
+
+	if($t eq "f" || $t eq "d") { return; }
+
+print<<EOF;
+    {
+	int (*func)($type{$t});
+	int result;
+	/* reg <- (reg $op imm) */
+	if (verbose) printf(" - $insni\\n");
+        dr_proc_params(c, "$insni", DR_$upt, "%$t");
+		l = dr_genlabel(c);
+        	dr_$insni(c, dr_param(c, 0), $cast s2$t, l);
+        		dr_retii(c, 0);
+		dr_label(c, l);
+			dr_retii(c, 1);
+        func = (int (*)($type{$t})) dr_end(c);
+	result = func(s1$t);
+	if (di  != result) {
+	    printf("Failed test for $insni\\n");
+	    dr_errors++;
+	    dr_dump(c);
+	}
+
+    }
+EOF
+}
+
+
+#
+# Emit memory instructions.
+#
+sub emit_load {
+	local($t, $name, $offset) = @_;
+	local($insn,$insni,$rt);
+
+	$insn = "$name$t";
+	$insni = "$insn" . "i";
+
+	$rt = 
+		($t eq "c" || $t eq "uc" || $t eq "s" || $t eq "us") ?
+			"i" :
+			$t;
+	$cast1 = ($t eq "p") ? "(unsigned long)" : "";
+		
+        $upt = "\U$t\E";
+print<<EOF;
+    {
+	$type{$t} (*func)(unsigned long, unsigned long);
+	$type{$t} result;
+	dr_reg_t	rd$t;
+	/* reg <- mem[reg + reg]  */
+	if (verbose) printf(" - $insn\\n");
+        dr_proc_params(c, "$insn", DR_$upt, "%ul%ul");
+		if(!dr_getreg(c, &rd$t, $type_enum{$t}, DR_TEMP))
+			dr_fatal("out of registers!");
+
+        	dr_$insn(c, rd$t, dr_param(c, 0), dr_param(c, 1));
+        	dr_ret$rt(c, rd$t);
+        func = ($type{$t}(*)(unsigned long, unsigned long)) dr_end(c);
+	result = func((unsigned long)&d$t - $offset, $offset);
+	if (d$t != result) {
+	    printf("Failed test for $insn , expected $c_print_formats{$t}, got $c_print_formats{$t}\\n", $cast1 d$t, $cast1 result);
+	    dr_errors++;
+	    dr_dump(c);
+	}
+    }	
+    {
+	$type{$t} (*func)(unsigned long);
+	$type{$t} result;
+	dr_reg_t	rd$t;
+	/* reg <- mem[reg + imm] */
+	if (verbose) printf(" - $insni\\n");
+        dr_proc_params(c, "$insni", DR_$upt, "%ul");
+		if(!dr_getreg(c, &rd$t, $type_enum{$t}, DR_TEMP))
+			dr_fatal("out of registers!");
+
+        	dr_$insni(c, rd$t, dr_param(c, 0), $offset);
+        	dr_ret$rt(c, rd$t);
+        func = ($type{$t}(*)(unsigned long))dr_end(c);
+	result = func((unsigned long)&d$t - $offset);
+	if (d$t != result) {
+	    printf("Failed test for $insn , expected $c_print_formats{$t}, got $c_print_formats{$t}\\n", $cast1 d$t, $cast1 result);
+	    dr_errors++;
+	    dr_dump(c);
+	}
+    }
+
+EOF
+}
+
+sub emit_store {
+	local($t, $name, $offset) = @_;
+	local($insn,$insni);
+
+	$insn = "$name$t";
+	$insni = "$insn" . "i";
+
+print<<EOF;
+    {
+        void (*func)(unsigned long, unsigned long);
+	dr_reg_t	rd$t;
+	if (verbose) printf(" - $insn\\n");
+	s2ul = (unsigned long)&d$t - $offset;
+
+	/* mem [ reg + reg ] <- reg */
+        dr_proc_params(c, "$insn", DR_V, "%ul%ul");
+		if(!dr_getreg(c, &rd$t, $type_enum{$t}, DR_TEMP))
+			dr_fatal("out of registers!");
+
+		dr_set$t(c, rd$t, s2ul);
+        	dr_$insn(c, rd$t, dr_param(c, 0), dr_param(c, 1));
+        func = (void(*)(unsigned long, unsigned long)) dr_end(c);
+        ((void(*)(unsigned long, unsigned long))func)(s2ul, $offset);
+	if (d$t != ($type{$t})s2ul) {
+	    printf("Failed test for $insn\\n");
+	    dr_errors++;
+	    dr_dump(c);
+	}
+    }
+    {
+	/* mem [ reg + reg ] <- reg */
+        void (*func)(unsigned long);
+	dr_reg_t	rd$t;
+	d$t = 0;
+	if (verbose) printf(" - $insni\\n");
+        dr_proc_params(c, "$insni", DR_V, "%ul");
+		if(!dr_getreg(c, &rd$t, $type_enum{$t}, DR_TEMP))
+			dr_fatal("out of registers!");
+
+		dr_set$t(c, rd$t, s2ul);
+        	dr_$insni(c, rd$t, dr_param(c, 0), $offset);
+        func = (void(*)(unsigned long))dr_end(c);
+        ((void(*)(unsigned long))func)(s2ul);
+
+	if (d$t != ($type{$t})s2ul) {
+	    printf("Failed test for $insni\\n");
+	    dr_errors++;
+	    dr_dump(c);
+	}
+    }
+EOF
+}
+
+
+sub prologue {
+	print "int dr_errors;\n#include <math.h>\n#include \"string.h\"\n#include \"drisc.h\"\n#include <stdlib.h>\n#include <stdio.h>\n\n";
+
+print<<EOF;
+
+#undef BITSPERBYTE
+#define BITSPERBYTE 8
+
+float c_fabs(float x) { return (x) < 0.0 ? -x : x; }
+double c_abs(double x) { return (x) < 0.0 ? -x : x; }
+float c_fceil(float x) { return (float)(int)(x + .5); }
+double c_ceil(double x) { return (double)(int)(x + .5);}
+float c_ffloor(float x) { return (float)(int)(x); }
+double c_floor(double x) { return (double)(int)(x);}
+float c_fsqrt(float x) { extern double sqrt(double); return (float)sqrt((double)x); }
+double c_sqrt(double x) { extern double sqrt(double); 	return sqrt(x);}
+
+#define dr_fatal(str) do {fprintf(stderr, "%s\\n", str); exit(0);} while (0)
+
+int main(int argc, char *argv[])
+{
+    drisc_ctx c = dr_init();
+    char		dc;
+    unsigned char	duc;
+    short		ds;
+    unsigned short	dus, s2us;
+    int 	     	di, s1i, s2i;
+    unsigned     	du, s1u, s2u;
+    unsigned long   dul, s1ul, s2ul;
+    long     	s1l, s2l;
+    float		df, s1f, s2f;
+    double		dd, s1d, s2d;
+    void		*dp, *s1p, *s2p;
+    int		l, verbose = 0, i;
+    int 	iters = 10, loop_count = 0;
+    int 	aligned_offset, unaligned_offset;
+    int 	shifti, shiftu, shiftl, shiftul;
+
+    for (i=1; i < argc; i++) {
+	if (strcmp(argv[i], "-v") == 0) {
+	    verbose++;
+	} else {
+	    iters = atoi(argv[i]);
+	}
+    }
+	
+loop:
+    s1p = (void *)(long)rand();
+    s2p = (void *)(long)rand();
+
+    s1i = rand() - rand(); 
+    s2i = rand() - rand();
+    if(!(s2i = rand() - rand()))
+	s2i = rand() + 1;
+
+    s1u = rand() - rand();
+    if(!(s2u = rand() - rand()))
+	s2u = rand() + 1;
+
+    s1ul = rand() - rand();
+    if(!(s2ul = rand() - rand()))
+	s2ul = rand() + 1;
+
+    s1l = rand() - rand();
+    if(!(s2l = rand() - rand()))
+	s2l = rand() + 1;
+
+    s2us = rand() - rand();
+    if(!(s2us = rand() - rand()))
+	s2us = rand() + 1;
+
+    s1f = (float)rand() / rand();
+    s2f = (float)rand() / (rand()+1) * ((rand()%1) ? 1. : -1.);
+
+    s1d = (double)rand() / rand();
+    s2d = (double)rand() / (rand()+1) * ((rand()%1) ? 1. : -1.);
+
+    shifti = rand() % ((sizeof(int) * BITSPERBYTE) - 2) + 1;
+    shiftu = rand() % ((sizeof(unsigned) * BITSPERBYTE)-2) + 1;
+    shiftl = rand() % ((sizeof(long) * BITSPERBYTE)-2) + 1;
+    shiftul = rand() % ((sizeof(unsigned long) * BITSPERBYTE)-2) + 1;
+
+    aligned_offset = (rand() - rand()) & ~7;
+    unaligned_offset = (rand() - rand());
+
+    switch (loop_count) {
+    case 0:
+	aligned_offset = unaligned_offset = 0;
+	break;
+    case 1:
+	aligned_offset &= 0xf;
+	unaligned_offset &= 0xf;
+	break;
+    case 2:
+	aligned_offset &= 0xff;
+	unaligned_offset &= 0xff;
+	break;
+    default:
+	break;
+    }
+EOF
+}
+
+sub epilogue {
+
+print<<EOF;
+
+    loop_count++;
+    if(!dr_errors && (loop_count < iters)) goto loop;
+
+    if(!dr_errors) {
+	printf("No errors!\\n");
+	return 0;
+    }
+
+    printf("*** %d Errors! on loop %d ****\\n", dr_errors, loop_count -1);
+    printf("s1i %d, s2i %d, s1u %x, s2u %x\\n", s1i,s2i,s1u,s2u);
+    printf("s1ul %lu, s2ul %lu, s1l %ld, s2l %ld\\n", 
+	   s1ul,s2ul,s1l,s2l);
+    printf("s1f = %f, s2f = %f, s1d = %f, s2d = %f\\n",
+	   s1f,s2f,s1d,s2d);
+    printf(" aligned offset = %d, unaligned offset %d\\n", 
+	   aligned_offset, unaligned_offset);
+    printf("shifti = %d, shiftu = %d, shiftl = %d, shiftul = %d\\n",
+	   shifti, shiftu, shiftl, shiftul);	
+    return 1;
+}
+
+EOF
+}
+
+sub initialize {
+	%c_print_formats = (
+		'c', '%d', 
+		'uc', '%u', 
+		's', '%d', 
+		'us', '%u', 
+		'i', '%d', 
+		'u', '%u',
+		'l', '%ld', 
+		'ul', '%lu', 
+		'p', '%lx', 
+		'f', '%g', 
+		'd', '%g'
+	);
+
+	%hex_print_formats = (
+		'c', '%x', 
+		'uc', '%x', 
+		's', '%x', 
+		'us', '%x', 
+		'i', '%x', 
+		'u', '%x',
+		'l', '%lx', 
+		'ul', '%lx', 
+		'p', '%lx', 
+		'f', '%g', 
+		'd', '%g'
+	);
+
+	%type = (
+        	"uc", "unsigned char",
+        	"c", "char",
+        	"us", "unsigned short",
+        	"s", "short",
+        	"u", "unsigned",
+        	"i", "int",
+        	"l", "long",
+        	"ul", "unsigned long",
+        	"p", "void *",
+        	"f",    "float",
+        	"d", "double",
+	);
+		
+	%type_enum = (
+        	"uc", "DR_UC",
+        	"c", "DR_C",
+        	"us", "DR_US",
+        	"s", "DR_S",
+        	"u", "DR_U",
+        	"i", "DR_I",
+        	"l", "DR_L",
+        	"ul", "DR_UL",
+        	"p", "DR_P",
+        	"f", "DR_F",
+        	"d", "DR_D",
+	);
+}

@@ -1,0 +1,8 @@
+Contents of the "naming_svc" directory:
+
+- Source Files: 
+   - naming_args.x    (XDR type definitions for the method argument structures)
+   - naming_clnt.h    (prototypes for the client-side methods)
+   - naming_clnt.c    (implementation of the client-side methods)
+   - naming_srvr.h    (prototypes for the server-side methods)
+   - naming_srvr.c    (implementation of the server-side methods)

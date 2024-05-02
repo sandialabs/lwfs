@@ -1,0 +1,68 @@
+# This file describes the filesystem namespace that will be presented
+# to compute node applications.  Outside of the {}, strings of the form
+# '#...\n' will be ignored and can be used as comments.  Comments
+# inside {} pairs are not allowed.
+
+# Do not place references to non existent Lustre or native directories
+# in this file.  They will lead to subtle runtime errors.
+
+# First set up the root of the compute node's filesystem view and
+# create the Catamount specific device files for stdio.
+{mnt,   dev="incore:0777+0+0",dir=/,fl=2}
+
+{creat, ft=dir,nm="/dev",pm=0777,ow=0,gr=0}
+{mnt,   dev="incore:0755+0+0",dir="/dev"}
+
+{creat, ft=chr,nm="/dev/stdin",pm=0444,mm=0+0}
+{creat, ft=chr,nm="/dev/stdout",pm=0222,mm=0+1}
+{creat, ft=chr,nm="/dev/stderr",pm=0222,mm=0+2}
+{creat, ft=dir,nm="/dev/fd",pm=0755,ow=0,gr=0}
+{creat, ft=chr,nm="/dev/fd/0",pm=0400,mm=0+0}
+{open,  nm="/dev/fd/0",fd=0,m=0}
+{creat, ft=chr,nm="/dev/fd/1",pm=0200,mm=0+1}
+{open,  nm="/dev/fd/1",fd=1,m=1}
+{creat, ft=chr,nm="/dev/fd/2",pm=0200,mm=0+2}
+{open,  nm="/dev/fd/2",fd=2,m=1}
+
+# __incore is required to exist to allow loadtime optimisations.
+{creat, ft=dir,nm="/__incore",pm=0777,ow=0,gr=0}
+{mnt,   dev="incore:0777+0+0",dir="/__incore"}
+
+# We create __root to mount yod's view of its filesystem, the "native"
+# filesytem.  Then we'll locally submount this one mount as required.
+
+{creat, ft=dir,nm="/__root",pm=04755,ow=0,gr=0}
+{creat, ft=file,nm="/__root/.mount",pm=0644,str="native:/\\ auto"}
+
+# Access to /etc is required.
+{creat, ft=dir,nm="/.shared",pm=04755,ow=0,gr=0}
+{creat, ft=file,nm="/.shared/.mount",pm=0600,str="sub:/__root/.shared"}
+{creat, ft=dir,nm="/etc",pm=04755,ow=0,gr=0}
+{creat, ft=file,nm="/etc/.mount",pm=0600,str="sub:/__root/etc"}
+
+# This provides access to users' home directories.
+{creat, ft=dir,nm="/ufs",pm=04777,ow=0,gr=0}
+{creat, ft=file,nm="/ufs/.mount",pm=0644,str="sub:/__root/ufs"}
+{creat, ft=dir,nm="/home",pm=04777,ow=0,gr=0}
+{creat, ft=file,nm="/home/.mount",pm=0644,str="sub:/__root/ufs/home"}
+
+{creat, ft=dir,nm="/tmp",pm=04777,ow=0,gr=0}
+{creat, ft=file,nm="/tmp/.mount",pm=0644,str="sub:/__root/tmp"}
+
+# The following lines are intended for use with lustre filesystems.
+# Replace the hostname with one that is appropriate for the installed
+# system and uncomment them when they reflect your desired
+# configuration.
+
+#{creat, ft=dir,nm="/lus",pm=04777,ow=0,gr=0}
+#{creat, ft=dir,nm="/lus/nid00132",pm=04777,ow=0,gr=0}
+#{creat, ft=file,nm="/lus/nid00132/.mount",pm=0644,str="llite:132:/nid00132-mds/client"}
+
+{creat, ft=dir,nm="/scratch1",pm=04777,ow=0,gr=0}
+{creat, ft=file,nm="/scratch1/.mount",pm=0644,str="llite:1028@ptl:/mds_l1/client"}
+
+# These lines mount the LWFS file system
+{creat, ft=dir,nm="/lwfs",pm=04777,ow=0,gr=0} 
+{creat, ft=file,nm="/lwfs/.mount",pm=0644,str="lwfs:/\\ lwfs_config.xml"}
+#{mnt,dev="lwfs:/",dir=/lwfs,fl=2,da=lwfs_config.xml}'
+

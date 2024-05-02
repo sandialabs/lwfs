@@ -1,0 +1,16 @@
+K 10
+svn:ignore
+V 83
+output*
+*.la
+*.bin
+.deps
+Makefile.in
+Makefile
+*.txt
+*.machines
+images
+data
+results
+
+END

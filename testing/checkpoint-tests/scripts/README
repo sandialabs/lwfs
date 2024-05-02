@@ -1,0 +1,5 @@
+How to run these tests on linux.  Use the start-authr and start-ss scripts 
+in the ss-tests dir to start the servers.  Then use the command line below 
+to run the write test on one processor.
+
+perl ./linux-tests.pl --prog=../lwfs-nton-write --prog-args="--lwfs-config-file=lwfs_config.xml --verbose=2"

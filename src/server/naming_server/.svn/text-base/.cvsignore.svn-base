@@ -1,0 +1,7 @@
+*.la
+*.lo
+naming_args.c
+naming_args.h
+Makefile.in
+Makefile
+.deps

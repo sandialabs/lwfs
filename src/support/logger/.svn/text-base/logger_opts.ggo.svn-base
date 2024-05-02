@@ -1,0 +1,2 @@
+option "verbose"   - "Debug level of logger [0-5]" int default="5" optional
+option "logfile"   - "Path to logfile" string optional

@@ -1,0 +1,16 @@
+/*-------------------------------------------------------------------------*/
+/**  
+ *   @file mds_debug.c
+ *   
+ *   @author Ron Oldfield (raoldfi\@sandia.gov)
+ *   $Revision$
+ *   $Date$
+ *
+ */
+
+#include "logger/logger.h"
+#include "mds/mds_debug.h"
+
+/* set to LOG_UNDEFINED -- log commands will use default level */
+log_level mds_debug_level = LOG_UNDEFINED; 
+

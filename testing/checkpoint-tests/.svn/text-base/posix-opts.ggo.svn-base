@@ -1,0 +1,18 @@
+option "num-trials" - "The number of trials per experiment" 
+	int default="1" optional
+option "ops-per-trial" - "The number of operations in a trial (blocksize=ops_per_trial*bytes_per_op)" 
+	int default="1" optional
+option "bytes-per-op" - "The number of bytes/object" int default="1024" optional
+option "num-ost" - "The number of object storage targets" int default="1" optional
+option "num-stripe" - "The number of stripes/file" int default="1" optional
+option "stripe-size" - "The size of a stripe" long default="1" optional
+option "async" - "Asynchronous tests" off flag
+option "in-transit" - "Number of requests in transit" 
+	int default="10" dependon="async" optional
+option "result-file" - "Where to store results"
+	string optional
+option "result-file-mode" - "Write mode for the result"
+	values="write","append" default="write" optional
+option "scratch-file" - "Where to write scratch data"
+	string default="/usr/tmp/scratch" optional
+option "remove-file" - "Remove the file when finished" off flag

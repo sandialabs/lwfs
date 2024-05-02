@@ -1,0 +1,63 @@
+    /**
+     *   @addtogroup txn_api  
+     *
+     *   The LWFS provides two mechanisms that enable the client to implement 
+     *   ACID-compliant transactions: journals and locks. 
+     *   \ref journal_api "Journals" provide a mechanism 
+     *   to ensure atomicity and durability for transactions. \ref lock_api "Locks"
+     *   enable consistency and isolation for concurrent transactions.  
+     *   To better understand how a client might use these mechanisms to 
+     *   implement ACID-compliant transactions, we describe each of the ACID 
+     *   properties below, along with examples of how a client might use the 
+     *   LWFS Journal and Locking mechanisms to ensure those properties. 
+     *       
+     *       - \b Atomicity: At the end of a transaction, either all of the 
+     *            operations complete successfully, or the system appears as 
+     *            if none of the operations executed. For operations logged
+     *            to a journal, the two-phase commit protocol (part of the 
+     *            journal API) helps the client to preserve the atomicity 
+     *            property because it requires all participating servers 
+     *            to agree on the final state of the system before changes 
+     *            become permanent. Any one of the participating servers 
+     *            can abort the entire transaction, which tells the 
+     *            transaction manager to revert the system to the 
+     *            previous state. 
+     *            
+     *       - \b Consistency: The consistency property implies that an 
+     *            external process should not see changes 
+     *            made by an in-progress transaction.  For clients that want 
+     *            to enforce consistency, the LWFS provides locking 
+     *            mechanisms to synchronize access to storage server objects. 
+     *            See the \ref lwfs_lock "lock" and \ref lwfs_unlock "unlock" 
+     *            methods in the \ref ss_api "storage service APIs" for details. 
+     *
+     *       - \b Isolation: For any two transactions \f$T_i\f$ and \f$T_j\f$, either 
+     *            \f$T_i\f$ appears to complete before \f$T_j\f$ starts, or 
+     *            \f$T_j\f$ appears to complete before \f$T_i\f$ starts. 
+     *            A client that wants isolation can use the locking API 
+     *            to synchronize access to resources used by operations 
+     *            in the transaction. 
+     *
+     *       - \b Durability: On successfull completion of a transaction, the changes 
+     *            made inside a transaction persist, even in the event of a client failure.  
+     *            A client that wants durability should use the 
+     *            \ref journal_api "Journal API" to log LWFS operations 
+     *            to a persistent journal.  If the client fails during a 
+     *            \ref lwfs_journal_commit "commit" operation, the 
+     *            storage server managing the journal becomes the transaction 
+     *            manager and can complete the transaction independently. 
+     *
+     *
+     *   @note  
+     *          It is important to note that there is no requirement of ACID 
+     *          compliance for file system implementations.  In fact,
+     *          some file systems may sacrifice some or all of the ACID properties
+     *          to achieve higher performance.  It is also not a 
+     *          requirement for clients that want ACID-compliant transactions 
+     *          use the LWFS journal and locking APIs to implement transactions.
+     *          Some file system implementations may choose to experiment 
+     *          with other mechanisms that provide equivalent
+     *          functionality. The journal and a locking APIs are simply 
+     *          provided as a convenience. 
+     *
+     */

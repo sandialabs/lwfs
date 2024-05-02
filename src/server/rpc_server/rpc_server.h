@@ -1,0 +1,240 @@
+/*-------------------------------------------------------------------------*/
+/**  
+ *   @file rpc_srvr.h
+ * 
+ *   @brief Prototypes for the server-side methods for RPC. 
+ * 
+ *   @author Ron Oldfield (raoldfi\@sandia.gov)
+ *   @author Rolf Riesen (rolf\@cs.sandia.gov)
+ *   $Revision: 1139 $
+ *   $Date: 2007-02-03 14:59:28 -0700 (Sat, 03 Feb 2007) $
+ */
+
+#ifndef _LWFS_RPC_SRVR_H_
+#define _LWFS_RPC_SRVR_H_
+
+#include "support/threadpool/thread_pool.h"
+
+#include "common/types/types.h"
+#include "common/rpc_common/rpc_debug.h"
+#include "common/rpc_common/rpc_common.h"
+
+
+/**
+ * @defgroup rpc_server_api  RPC Server API
+ * @ingroup rpc_api
+ * 
+ *  The server-side APIs for remote procedure calls includes a method to 
+ *  register an RPC service by name, a method to add functions to a registered 
+ *  service, and a method to begin processing RPC requests for a particular service. 
+ */
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+	/**
+	 * @brief Definition of a function pointer for RPC services.
+	 */
+	typedef int (*lwfs_rpc_proc) (const lwfs_remote_pid *, const void *, const lwfs_rma *, void *);
+
+
+	/**
+	 * @brief A structure associated with an operation made available
+	 * by a registered service. 
+	 *
+	 * The \b lwfs_svc_op structure includes all fields required to 
+	 * spawn call a local method when an RPC request arrives. 
+	 */
+	typedef struct {
+		/** @brief The operation code.  */
+		lwfs_opcode opcode;
+
+		/** @brief Function pointer for the server-side function.  */
+		lwfs_rpc_proc func;
+
+		/** @brief Size of the arguments structure. */
+		uint32_t sizeof_args;
+
+		/** @brief A function to decode the arguments when a request arrives. */
+		xdrproc_t decode_args;
+
+		/** @brief Size of the result structure. */
+		uint32_t sizeof_res;
+
+		/** @brief A function to encode the result after servicing the request. */
+		xdrproc_t encode_res;
+	} lwfs_svc_op; 
+
+
+	/**
+	 * @brief Structure for a list of RPC services. 
+	 */
+	typedef struct lwfs_svc_op_list {
+
+		/** @brief The service for this entry. */
+		lwfs_svc_op svc_op;
+
+		/** @brief The remaining list of services. */
+		struct lwfs_svc_op_list *next;
+	} lwfs_svc_op_list; 
+
+
+
+#if defined(__STDC__) || defined(__cplusplus)
+
+	/**
+	 * @brief An abstract method to get data from a remote memory descriptor.
+	 *
+	 * The server stub uses this function to get or put data to a 
+	 * client memory descriptor. 
+	 *
+	 * @param buf       @input_type   the buffer for the data.
+	 * @param len       @input_type   the maximum length of the buffer.
+	 * @param data_addr @input_type   the remote memory descriptor.
+	 */
+	extern int lwfs_get_data(
+			void *buf,
+			const int len,
+			const lwfs_rma *data_addr);
+
+	/**
+	 * @brief An abstract method to put data into a remote memory descriptor.
+	 *
+	 * The server stub uses this function to put data to a 
+	 * client memory descriptor. 
+	 *
+	 * @param buf        @input_type the buffer for the data.
+	 * @param len        @input_type   the amount of data to send.
+	 * @param data_addr  @input_type the remote memory descriptor.
+	 */
+	extern int lwfs_put_data(
+			const void *buf,
+			const int len,
+			const lwfs_rma *data_addr);
+
+	/**
+	 * @brief Initialize an RPC server. 
+	 *
+	 * @ingroup rpc_server_api
+	 * 
+	 * This method initializes the portals library and allocates space 
+	 * for incoming requests.
+	 *
+	 * @param match_bits @input_type the portals match bits
+	 * @param short_req_len @input_type the length of a portals short request queue
+	 * @param service    @output_type the service descriptor to register (to register for clients). 
+	 */
+	extern int lwfs_service_init(
+			const lwfs_match_bits match_bits,
+			const int short_req_len, 
+			lwfs_service *service);
+
+
+	/**
+	 * @brief Cleanly abort the RPC server.
+	 *
+	 * The abort function kills a running service by sending a 
+	 * SIGINT signal to the running process.  If the service
+	 * has already started,  the signal is caught by the 
+	 * signal handler.
+	 */
+	extern void lwfs_service_abort();
+
+	/**
+	 * @brief Returns true if the service needs to shut down. 
+	 */
+	extern lwfs_bool lwfs_exit_now(); 
+
+
+
+	/**
+	 * @brief Start an RPC service.
+	 *
+	 * @ingroup rpc_server_api
+	 *
+	 * The \b lwfs_service_start method waits for RPC requests 
+	 * and executes the appropriate callback function (a registered
+	 * method) when a request arrives. 
+	 * arrives. 
+	 *
+	 * @param service @input_type The service descriptor. 
+	 * @param pool_args @input_type Arguments to configure the thread pool
+	 * @param op_array  @input_type The list of available functions (callbacks).
+	 */
+	extern int lwfs_service_start(
+			lwfs_service *service, 
+			const lwfs_thread_pool_args *pool_args);
+
+
+	extern int lwfs_service_add_ops(
+			const lwfs_service *svc,
+			const lwfs_svc_op *ops,
+			const int len);
+
+	/**
+	 * @brief Start an RPC service as a thread. 
+	 *
+	 * @ingroup rpc_server_api
+	 *
+	 * @param service @input_type The service descriptor. 
+	 * @param pool_args @input_type Arguments to configure the thread pool
+	 * @param op_array  @input_type The list of available functions (callbacks).
+	 * 
+	 * This functions creates a POSIX thread to process incoming
+	 * requests for the specified service. 
+	 *
+	 *
+	 */
+	extern int lwfs_service_start_thread(
+			lwfs_service *service, 
+			const lwfs_thread_pool_args *pool_args);
+
+	/**
+	 * @brief Close down an active service. 
+	 * 
+	 * @ingroup rpc_server_api
+	 *
+	 * Shuts down the service and releases any associated resources. 
+	 *
+	 * @param service @input_type The service descriptor.
+	 */
+	extern int lwfs_service_fini(const lwfs_service *service);
+
+	/**
+	 * @brief Register an RPC service. 
+	 * 
+	 * @ingroup rpc_server_api
+	 * 
+	 * This method creates a named RPC service on the specified
+	 * registry server.  Along with the name of the service, the 
+	 * server has to specify where (in the form of an \ref lwfs_rma) the 
+	 * client should "put" requests.  
+	 *
+	 * @param registry_id @input_type Process ID of the registry server. 
+	 * @param name @input_type Name of the service. 
+	 * @param service @input_type The service description to associate with the name.
+	 * @param req    @output_type The request handle (used to test for completion).
+	 */
+	 /*
+	extern int lwfs_register_service(
+			const lwfs_remote_pid registry_id,
+			const char *name, 
+			const lwfs_service *service,
+			lwfs_request *req);
+	*/
+
+
+#else /* K&R C */
+#endif
+
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif 
+

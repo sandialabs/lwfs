@@ -1,0 +1,9 @@
+Tests to encode and decode some data structures using XDR. 
+
+Testing XDR.  
+
+% stdio_writer | stdio_reader
+
+% xdrmem_writer | stdio_reader
+
+

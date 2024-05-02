@@ -1,0 +1,4 @@
+option "ss-server-file"   - "Path to a file with a list of storage servers" string optional
+option "ss-num-servers"   - "Number of servers to use from the server file" int default="1" dependon="ss-server-file" optional
+option "ss-pid" - "The PID of a single remote storage storage server (ignored if using --ss=server-file)" int default="122" optional
+option "ss-nid" - "The NID of a single remote storage server (ignored if using --ss-server-file)" long default="0" optional

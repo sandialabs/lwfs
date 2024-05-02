@@ -1,0 +1,3 @@
+option "num-reqs" - "Number of requests before exit" int default="-1" optional
+option "use-threads" - "Flag to use threads for the server" flag off
+option "daemon" - "Flag to run server as a daemon" flag off

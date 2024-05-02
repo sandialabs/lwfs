@@ -1,0 +1,33 @@
+********** Current status for the storage directory **********
+
+Doing 'make' in this directory should generate the storage libraries
+libstorage_srvr.la and libstorage_clnt.la as well as the storage server
+test executable (ss_test).  libstorage_clnt.la contains the storage
+proxy functions for use by the client.  libstorage_srvr.la contains
+the basic api functions for the server.  'ss_test' links the two
+libraries and makes largely random calls to the storage API (client
+side).
+
+Here is the basic outline of ss_test:
+
+    /*      while (we have more objects to create){
+     *
+     *          1) create an obj or not (random);
+     *
+     *          2) delete an arbitrary obj or not (random);
+     *
+     *          3) write or not (random) to an arbitrary
+     *             object;
+     *
+     *          4) read or not (random) from an arbitrary object, 
+     *             at an arbitrary index into the file; verify that
+     *             data read is correct;
+     *
+     *     }
+     */
+
+The storage server does not do locking, journaling, or
+verification of capabilities.
+
+Any logging is to 'log.txt' in the current working directory.
+

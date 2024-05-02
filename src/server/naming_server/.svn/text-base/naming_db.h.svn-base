@@ -1,0 +1,165 @@
+/**  
+ *   @file naming_db.h
+ * 
+ *   @brief Prototypes for the database access methods used 
+ *          by the naming service.  
+ * 
+ *   @author Ron Oldfield (raoldfi\@sandia.gov)
+ *   @author Rolf Reisen (rolf\@sandia.gov)
+ *   $Revision$
+ *   $Date$
+ */
+
+#include "common/types/types.h"
+
+#ifndef _LWFS_NAMING_DB_H_
+#define _LWFS_NAMING_DB_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+	/**
+	 * @brief Structure for the inode data stored in the database.
+	 * 
+	 * I know it's not an inode, but everybody know what that is.  And 
+	 * it is like an inode.
+	 * 
+	 * Multiple naming_db_dirent's may reference this inode.  ref_cnt 
+	 * tracks the number of references.  When the ref_cnt goes to zero, 
+	 * the inode can be freed.
+	 */
+	typedef struct  {
+		/** @brief The object reference for this entry (contains
+		 *  cid, type, oid, and lock_id). */
+		lwfs_obj entry_obj;
+
+		/** @brief Number of naming_db_dirent's that reference this 
+		 * naming_db_object. */
+		int ref_cnt;
+
+		/** @brief Attributes for the entry (atime, ctime, mtime, 
+		 * link_cnt). */
+		lwfs_stat_data stat_data;
+
+		/** @brief A flag that the file_object is valid. */
+		lwfs_bool file_obj_valid;
+
+		/** @brief The storage object used for file entries. */
+		lwfs_obj file_obj;
+
+	} naming_db_inode;
+
+	/**
+	 * @brief Structure that represents a directory entry in the database.
+	 */
+	typedef struct  {
+		/** @brief The unique id of this dirent */
+		lwfs_oid oid;
+
+		/** @brief The oid of the naming_db_inode this dirent names. 
+		 * 
+		 * This actually references the inode's entry_obj.oid, which 
+		 * is the unique id for the inode.
+		 */
+		lwfs_oid inode_oid;
+		
+		/** @brief A flag to hide the entry from directory lookups. */
+		lwfs_bool hide;
+
+		/** @brief The name of the object. */
+		char name[LWFS_NAME_LEN];
+
+		/** @brief The oid for the parent.
+		 *
+		 *  If we later want to support a distributed namespace,
+		 *  we would represent the parent with an \ref lwfs_obj.
+		 */
+		lwfs_oid parent_oid;
+
+		/** @brief If this is a link, this variable points to
+		  * the oid of the linked obj. */
+		lwfs_oid link;
+
+		/** @brief Is this node deleted (but still linked to)? */
+		lwfs_bool deleted;
+
+	} naming_db_dirent;
+
+	/**
+	 * @brief A convenient way to pass around a dirent plus inode. 
+	 */
+	typedef struct  {
+		/** @brief The name and parent of this entry */
+		naming_db_dirent dirent;
+
+		/** @brief The actual file structure that is named by the dirent */
+		naming_db_inode inode;
+
+	} naming_db_entry; 
+
+#if defined(__STDC__) || defined(__cplusplus)
+
+	/**
+	 * @brief Initialize the database.
+	 *
+	 * This function initializes the sleepycat database used to store
+	 * namespace entries for the naming server
+	 *
+	 * @param acl_db_fname @input_type path to the database file.
+	 * @param dbclear @input_type  flag to signal a fresh start.
+	 * @param dbrecover @input_type flag to signal recovery from crash.
+	 */
+	extern int naming_db_init(
+			const char *acl_db_fname,
+			const lwfs_bool dbclear,
+			const lwfs_bool dbrecover,
+			naming_db_entry *root_entry,
+			naming_db_entry *orphan_entry);
+
+	extern int naming_db_fini();
+
+	extern int naming_db_gen_oid(lwfs_oid *result);
+
+	extern int naming_db_get_by_name(
+			const lwfs_oid *parent_oid,
+			const char *name,
+			naming_db_entry *result);
+
+	extern int naming_db_get_by_oid(
+			const lwfs_oid *oid,
+			naming_db_entry *result);
+
+	extern int naming_db_get_all_by_parent(
+			const lwfs_oid *parent,
+			naming_db_entry *result,
+			const int maxlen);
+
+	extern int naming_db_get_size(
+			const lwfs_oid *parent,
+			uint32_t *result);
+
+	extern int naming_db_put(
+			const naming_db_entry *entry,
+			const uint32_t options);
+
+	extern int naming_db_del(
+			const lwfs_oid *parent_oid,
+			const char *name,
+			naming_db_entry *result);
+
+	extern lwfs_bool naming_db_exists(
+			const naming_db_entry *db_entry);
+
+	extern int naming_db_print_all();
+
+#else /* K&R C */
+
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif 
+

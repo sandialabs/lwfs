@@ -1,0 +1,12 @@
+K 10
+svn:ignore
+V 57
+*.la
+*.lo
+Makefile.in
+Makefile
+.deps
+gss-xdr.c
+gss-xdr.h
+
+END

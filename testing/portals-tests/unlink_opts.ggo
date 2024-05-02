@@ -1,0 +1,8 @@
+option "total-msgs"   - "The number of messages to send/receive" int default="20" optional
+option "msgs-per-md"   - "The number of messages per MD on the server" int default="5" optional
+option "portal-index"   - "Portals index to use" int default="3" optional
+option "match-bits"   - "Match bits to use" int default="3" optional
+option "server-pid"  - "The process ID of the server" longlong default="99" optional
+option "server-nid"  - "The node ID of the server" longlong default="-1" optional
+option "msg-data"  - "The data to send in each mesg" string default="Hello" optional
+option "with-bug"  - "Run the buggy version" off flag 

@@ -1,0 +1,247 @@
+/**  @file main.c
+ *   
+ *   @brief An LWFS storage server. 
+ * 
+ *   The LWFS storage server executes the code to service 
+ *   remote requests for the LWFS storage service.  The 
+ *   storage server also requires access to an authorization
+ *   service that can verify the authenticity of capabilities
+ *   sent from the client.  This implementation allows the 
+ *   user to install either install an authorization service
+ *   on the same process as the storage server, or select a 
+ *   remote authorization service by specifying the Portals 
+ *   nid, pid, and index to send authorization service requests. 
+ *   
+ *   @author Ron Oldfield (raoldfi\@sandia.gov).
+ *   $Revision: 1546 $.
+ *   $Date: 2007-09-11 18:06:56 -0600 (Tue, 11 Sep 2007) $.
+ */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <sys/types.h>
+#include <db.h>
+#include <getopt.h>
+#include <unistd.h>
+
+#ifdef HAVE_GENGETOPT
+#include "cmdline.h"
+#else
+#include "cmdline_default.h"
+#endif
+
+#include "storage_server.h"
+#include "storage_server_opts.h"
+
+#include "client/authr_client/authr_client_opts.h"
+#include "common/rpc_common/lwfs_ptls.h"
+#include "common/rpc_common/ptl_wrap.h"
+
+#include "support/logger/logger.h"
+#include "support/logger/logger_opts.h"
+
+#include "support/threadpool/thread_pool.h"
+#include "support/threadpool/threadpool_opts.h"
+
+#include "support/sysmon/sysmon_opts.h"
+
+#include "support/trace/trace.h"
+
+#if STDC_HEADERS
+#include <stdlib.h>
+#endif
+
+/* -- prototypes --- */
+
+
+/* ----------------- COMMAND-LINE OPTIONS --------------- */
+
+
+static int print_args(
+		FILE *fp, 
+		const struct gengetopt_args_info *args_info, 
+		const char *prefix) 
+{
+	int rc = 0; 
+
+	fprintf(fp, "%s ------------  ARGUMENTS -----------\n", prefix);
+	fprintf(fp, "%s \tnum_reqs = %d\n", prefix, args_info->num_reqs_arg);
+	fprintf(fp, "%s \tuse_threads = %s\n", prefix, 
+			((args_info->use_threads_flag)? "true":"false"));
+	fprintf(fp, "%s \tdaemon = %s\n", prefix, 
+			((args_info->daemon_flag)? "true":"false"));
+
+	print_logger_opts(fp, args_info, prefix);
+	print_storage_server_opts(fp, args_info, prefix); 
+	print_authr_client_opts(fp, args_info, prefix); 
+
+	if (args_info->use_threads_flag) {
+		print_threadpool_opts(fp, args_info, prefix); 
+	}
+	
+	print_sysmon_opts(fp, args_info, prefix);
+	
+	fprintf(fp, "-----------------------------------\n");
+
+	return rc; 
+}
+
+/* -- private methods -- */
+
+static const char DEFAULT_ROOT[] = "./ss-root";
+
+extern unsigned long max_mem_allowed;
+
+
+/**
+ * @brief The LWFS storage server.
+ */
+int main(int argc, char **argv)
+{
+	int rc = LWFS_OK;
+	lwfs_service authr_svc; 
+	lwfs_remote_pid myid;
+	lwfs_remote_pid authr_id;
+
+	struct gengetopt_args_info args_info; 
+
+	/* default process ID and portal index to use for incoming requests */
+
+	/* service descriptors (only need one) */
+	lwfs_service service;  
+
+	/* Parse command line options */
+	if (cmdline_parser(argc, argv, &args_info) != 0)
+		exit(1); 
+
+	/* Initialize the logger */
+	logger_init(args_info.verbose_arg, args_info.logfile_arg);
+
+	/* initialize and enable tracing */
+	if (args_info.ss_trace_flag) {
+	    fprintf(stderr," main: initializing tracing\n");
+	    trace_enable();
+	    trace_init(args_info.ss_tracefile_arg, args_info.ss_traceftype_arg);
+	}
+
+	if (args_info.daemon_flag) {
+		int daemon_pid = fork(); 
+
+		if (daemon_pid < 0) {  /* fork error */
+			log_error(authr_debug_level, "could not fork process");
+			return -1;
+		}
+
+		if (daemon_pid > 0) {  /* parent exits */
+			exit(0);
+		}
+
+		/* child (daemon) continues */
+
+		/* obtain a new process groupd for the daemon */
+		setsid(); 
+
+		//i = open("/dev/null", O_RDWR);  /* open stdin */
+		//dup(i); /* stdout */
+		//dup(i); /* stderr */
+	}
+	
+	/* initialize logging for storage */
+	ss_debug_level = args_info.verbose_arg; 
+//        rpc_debug_level = LOG_OFF;
+
+
+	/* initialize RPC for the child */
+	lwfs_ptl_init(PTL_IFACE_SERVER, args_info.ss_pid_arg); // (LWFS_SS_PID);
+	lwfs_rpc_init(LWFS_RPC_PTL, LWFS_RPC_XDR);
+
+
+	/* get the local process id */
+	lwfs_get_id(&myid); 
+
+	/* set the authr service id */
+	authr_id.nid = args_info.authr_nid_arg; 
+	authr_id.pid = args_info.authr_pid_arg; 
+
+	/* get the service description for authorization */
+	rc = lwfs_get_service(authr_id, &authr_svc); 
+	if (rc != LWFS_OK) {
+		log_error(ss_debug_level, 
+				"unable to get authr service: %s",
+				lwfs_err_str(rc));
+		return rc; 
+	}
+
+	/* cache caps */
+	if (args_info.authr_cache_caps_flag) {
+		lwfs_cache_caps_init();
+	}
+
+	/* initialize the storage server */
+	log_debug(ss_debug_level, "initializing storage server");
+	rc = storage_server_init(
+			args_info.ss_db_path_arg, 
+			args_info.ss_db_clear_flag, 
+			args_info.ss_db_recover_flag,
+			args_info.ss_iolib_arg, 
+			args_info.ss_root_arg,
+			args_info.ss_numbufs_arg,
+			args_info.ss_bufsize_arg,
+			&authr_svc, 
+			&service);
+	if (rc != LWFS_OK) {
+		log_fatal(ss_debug_level, "Could not initialize storage server");
+		goto exit; 
+	}
+
+	/* print the arguments */
+	print_args(logger_get_file(), &args_info, "");
+
+	/* start the storage server */
+	log_debug(ss_debug_level, "starting server");
+	service.max_reqs = args_info.num_reqs_arg; 
+	
+	/* set the rpc_server max memory option */
+	if (args_info.max_mem_allowed_arg > 0) {
+		max_mem_allowed = args_info.max_mem_allowed_arg;
+	}
+
+	if (args_info.use_threads_flag) {
+		lwfs_thread_pool_args tp_opts;
+		tp_opts.initial_thread_count = args_info.tp_init_thread_count_arg;
+		tp_opts.min_thread_count = args_info.tp_min_thread_count_arg;
+		tp_opts.max_thread_count = args_info.tp_max_thread_count_arg;
+		tp_opts.low_watermark = args_info.tp_low_watermark_arg;
+		tp_opts.high_watermark = args_info.tp_high_watermark_arg;
+		rc = lwfs_service_start(&service, &tp_opts);
+	}
+	else {
+		/* send null tp_opts to signal single-threaded server */
+		rc = lwfs_service_start(&service, NULL);
+	}
+	if (rc != LWFS_OK) {
+		log_fatal(ss_debug_level, "Could not start storage server");
+		goto exit; 
+	}
+
+exit:
+
+	/* shutdown the lwfs storage server  */
+	log_debug(ss_debug_level, "shutting down RPC library");
+	storage_server_fini(&service); 
+	cmdline_parser_free(&args_info);
+
+	/* remove caps cache  */
+	if (args_info.authr_cache_caps_flag) {
+		lwfs_cache_caps_fini();
+	}
+	
+
+	/* shutdown the rpc library */
+	lwfs_rpc_fini(); 
+
+	return rc; 
+}
+
+

@@ -1,0 +1,27 @@
+K 10
+svn:ignore
+V 227
+Makefile
+Makefile.in
+piob.modified
+configure
+config.log
+config.h
+INSTALL
+COPYING
+config.status
+stamp-h1
+config.h.in
+autom4te.cache
+libtool
+aclocal.m4
+scripts
+depcomp
+compile
+config.guess
+config.sub
+ltmain.sh
+missing
+install-sh
+
+END

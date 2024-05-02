@@ -1,0 +1,149 @@
+/**
+ *   @defgroup naming_conventions  Naming Conventions
+ *
+ *   The naming conventions used for LWFS core APIs are based on 
+ *   gnu coding standards\latexonly~\cite{gnu-coding-standards}\endlatexonly. 
+ *   The names for all global functions, 
+ *   macros, enumerators, variables, and struct definitions start 
+ *   with the prefix ``lwfs'', either upper or lower case, to 
+ *   distinguish LWFS library code from other libraries. 
+ *   Function, struct, and enum names are lowercase, with underscores 
+ *   to separate words; however macros and constants use all uppercase 
+ *   with underscores to separate the names. 
+ */
+
+
+/**
+ *   @defgroup async_api  Support for Asynchronous Functions
+ *
+ *   Unless specified differently, LWFS functions that require
+ *   communication with a remote server are asynchronous and
+ *   match the following template (arguments enclosed by `['
+ *   and `]' are optional): 
+ *
+    \code
+        int lwfs_func(
+            ... func args ..., 
+            [data], 
+            [result], 
+            lwfs_request *req); 
+    \endcode
+ *
+ *  Each function returns an integer value that corresponds to a 
+ *  return code defined in the enumerator <tt>\ref lwfs_return_code</tt>; 
+ *  however, since all methods are asynchronous, the  client-side method 
+ *  only indicates success or failure of marshaling and tranferring 
+ *  the request to the server, not the success of the remote method.  
+ *  Later, we discuss how the client checks for the status of the 
+ *  remote method. 
+ *
+ *  The arguments include the function-specific set of arguments 
+ *  required by the remote function, optional data and result arguments, and 
+ *  the <tt>\ref lwfs_request</tt> data structure that holds all 
+ *  required information about the pending request. 
+ *  
+ *  The optional ``data'' argument is reserved for functions that perform 
+ *  bulk data transfers between the client and the server.  This argument is 
+ *  typically declared as a <tt>void *</tt> and points to client-side
+ *  memory buffer that the server pulls from (e.g., for reads) or 
+ *  puts into (e.g., for writes).  It is important that the memory 
+ *  pointed to by the data argument remains unmodified by the client
+ *  until the remote function completes.  
+ *
+ *  The optional ``result'' argument is for functions that expect a 
+ *  non-integer ``control'' response from the server.  For example, the 
+ *  <tt>\ref lwfs_get_cap "lwfs_get_cap()"</tt> function defined for the 
+ *  \ref lwfs_authr "authorization service" returns a list of 
+ *  requested capabilities.  The type of the result argument is 
+ *  function specific and points to the client-side buffer reserved 
+ *  for that data. At first glance, this may seem similar to the 
+ *  data argument; however, there are several important distinctions:
+ *
+ *    -# Results are always directed from the server to the client, 
+ *       but data could flow in either direction (e.g., data for the 
+ *       <tt>\ref lwfs_write "lwfs_write()"</tt> function flows from 
+ *       client to storage server).
+ *    -# Data is typically large in comparison to the "control" structures 
+ *       (arguments and results). A clever implementation may transfer 
+ *       args and results over a network channel optimized for small 
+ *       messages, but transfer data over a network channel optimized 
+ *       for bulk transfers. 
+ *    -# Results are encoded in a portable binary format before transfer, 
+ *       data is transferred as ``raw'' binary data.
+ *
+ *  The final argument is a pointer to the <tt>\ref lwfs_request</tt> structure that 
+ *  contains all required information about the pending request, including 
+ *  the \ref lwfs_request_status "status" of the pending
+ *  request and the return code of the remote method (if complete). 
+ *  The client calls the functions <tt>\ref lwfs_get_status "lwfs_get_status()"</tt>,
+ *  <tt>\ref lwfs_test "lwfs_test()"</tt>, or <tt>\ref lwfs_wait "lwfs_wait()"</tt>
+ *  to asynchronously get the status of a pending request, test for
+ *  completion, or wait for completion of a request.  
+ *
+ *  @latexonly \input{generated/structlwfs__request} @endlatexonly
+ *
+ */
+
+/**
+ *   @defgroup rpc_api  Remote Procedure Calls
+ */
+
+/**
+ *   @defgroup txn_api  Transactions 
+ */
+
+/**
+ *  @defgroup return_codes  Return Codes
+ *
+ *  Each LWFS function returns an integer value that corresponds
+ *  to an error in the LWFS implementation. These values are analogous
+ *  to the values from the UNIX include file ``<tt>error.h</tt>''. The
+ *  enumerator structure <tt>\ref lwfs_return_code</tt> defines and 
+ *  describes each of the return codes in the LWFS core. 
+ *
+ */
+
+
+
+/**
+ *  @defgroup journal_api  Journals
+ */
+
+/**
+ *  @defgroup lock_api  Locks
+ */
+
+
+/**
+ *   @defgroup authn_api  Authentication
+ */
+
+
+/**
+ *   @defgroup authr_api  Authorization
+ */
+
+/**
+ *   @defgroup ss_api  Storage
+ */
+
+
+/**
+ *   @defgroup naming_api  The LWFS naming service
+ */
+
+/**
+ *   @defgroup base_types  Base Types
+ *
+ *   We define a number of general-purpose types and data structures
+ *   used by the LWFS programming interface. In some cases we 
+ *   simply rename the types provided by the C programming 
+ *   language to provide consistency of type definitions 
+ *   across different computing platforms. 
+ *
+ *  @latexonly \input{generated/structlwfs__time} @endlatexonly
+ */
+
+
+
+

@@ -1,0 +1,71 @@
+/**  
+ *   @file Readme.doxy
+ * 
+ *   @author Ron Oldfield (raoldfi\@sandia.gov)
+ *   @author Rolf Riesen (rolf\@cs.sandia.gov)
+ *   $Revision: 1.10 $
+ *   $Date: 2005/07/19 20:29:14 $
+ */
+
+/**
+ *   @addtogroup rpc_api
+ *
+ * The LWFS uses an asynchronous remote procedure call (RPC) 
+ * interface to execute remote 
+ * methods on LWFS servers.  Each remote method has an 
+ * associated client-side interface that matches the 
+ * following template (arguments enclosed by '[' and ']'  
+ * brackets are optional) 
+ *
+    \code
+        int func(
+            ... func args ..., 
+            [data], 
+            [result], 
+            lwfs_request *req); 
+    \endcode
+ *
+ *  The primary function of each client-side method is to marshal 
+ *  arguments and transfer an RPC request to the appropriate 
+ *  LWFS server.  Since all methods are asynchronous, the  
+ *  client-side method indicates success/failure 
+ *  of marshaling and tranferring the request.  
+ *  
+ *  The \ref lwfs_request "request header" (req) contains all
+ *  required information about the pending request, including 
+ *  the \ref lwfs_request_status "status" of the pending
+ *  request and the return code
+ *  of the remote method (if complete). 
+ *  A client checks the status of a pending request by calling
+ *  \ref lwfs_get_status. A client tests for completion of 
+ *  the remote method by calling \ref lwfs_wait (a blocking 
+ *  call) or \ref lwfs_test (a non-blocking call). 
+
+ *  In addition to the remote method arguments and the 
+ *  request header, the client-side interface includes two 
+ *  optional arguments: a "result" argument, and a "data" 
+ *  argument. The result argument reserves space
+ *  for "control" information returned by a remote method. The result
+ *  is an operation-specific data structure. For example, the result
+ *  of the \ref lwfs_list_dir returns the list of entries contained
+ *  by the directory. The result is only valid if the return code 
+ *  (stored in the request structure) reports successful completion 
+ *  of the remote method. 
+ * 
+ *  The second optional argument is "data". A remote procedure uses 
+ *  the data argument for client-side memory associated with bulk 
+ *  transfers to/from server. Like the result, data is an 
+ *  operation-specific data structure; however, there are several 
+ *  differences between the result and data arguments: 
+ *    -# Results are always directed from the server to the client, 
+ *       but data could flow in either direction (e.g., data for the 
+ *       \ref lwfs_write operation flows from client to storage server).
+ *    -# Data is typically large in comparison to the "control" structures 
+ *       (arguments and results). A clever implementation may transfer 
+ *       args and results over a network channel optimized for small 
+ *       messages, but transfer data over a network channel optimized 
+ *       for bulk transfers. 
+ *    -# Unlike requests and results, data is not encoded before transit.
+ *  
+ */
+

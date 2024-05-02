@@ -1,0 +1,116 @@
+/*-------------------------------------------------------------------------*/
+/**  
+ *   @file locks.h
+ * 
+ *   @brief Prototype definitions for the LWFS locking API. 
+ * 
+ *   @author Ron Oldfield (raoldfi\@sandia.gov)
+ *   @author Rolf Riesen (rolf\@cs.sandia.gov)
+ *   @version $Revision$
+ *   @date $Date$
+ */
+
+#ifndef _LWFS_LOCKS_H_
+#define _LWFS_LOCKS_H_
+#include "config.h"
+
+/*#include "portals3.h"*/
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "common/types/types.h"
+#include "common/types/fprint_types.h"
+#include "client/rpc_client/rpc_client.h"
+
+#if defined(__STDC__) || defined(__cplusplus)
+
+    /**
+     *   @addtogroup lock_api
+     * 
+     *   Locks provide a mechanism to synchronize access to 
+     *   \ref lwfs_obj_ref "storage server objects" that allows the 
+     *   file system developer to provide \em isolation and 
+     *   \em consistency for distributed transactions. 
+     *   When locking is correctly used with \ref journal_api "Journals", 
+     *   the developer can implement distributed transactions 
+     *   that preserve all four of the ACID properties. 
+     *
+     *   The lock API includes two methods: one to lock 
+     *   access to an object, and another to unlock access to an object. 
+     *   Each lock is associated with a particular transaction. 
+     *   If the transaction ends (through a call to 
+	 *   <tt>\ref lwfs_journal_abort "lwfs_journal_abort()"</tt>
+     *   or <tt>\ref lwfs_journal_commit "lwfs_journal_commit()"</tt>), 
+	 *   the LWFS automatically releases all associated locks. 
+     */
+
+
+    /**
+     * @brief Lock access to an object.
+     * 
+     * @ingroup lock_api
+     *
+     * The <tt>\ref lwfs_lock</tt> function is used to obtain a ``lock'' on a 
+	 * storage server object. Only the holder of the lock may perform authorized 
+	 * access operations on the object. The lock type field allows the client to identify the 
+     * intention of the lock.
+     * 
+     * @param txn_id    @input_type If not NULL, points to a data structure that holds
+	 *                         information about a distrubuted transaction. 
+     * @param obj       @input_type Points to the data structure that represents a remote object. 
+     * @param lock_type @input_type Indicates the type of lock to request. 
+     * @param result    @output_type If successful, points to the id of the new lock. Undefined otherwise.
+     * @param req       @output_type If successful, points to a data structure that holds information
+	 *                          about the pending request. Undefined otherwise.
+     *
+	 * @return <b>\ref LWFS_OK</b> Indicates success. 
+     * @return <b>\ref LWFS_ERR_ENCODE</b> Indicates an error encoding the request. 
+     * @return <b>\ref LWFS_ERR_RPC</b> Indicates an error in the underlying transport library
+     */
+    extern int lwfs_lock(
+            lwfs_txn *txn_id,
+            lwfs_obj *obj, 
+            lwfs_lock_type lock_type, 
+            lwfs_lock_id *result,
+            lwfs_request *req); 
+
+
+    /**
+     * @brief Unlock access to an object.
+     *
+     * @ingroup lock_api 
+     *
+     * The <em> \ref lwfs_unlock</em> function releases the lock on a 
+     * storage server object. 
+     * 
+     * @param txn_id    @input_type Points to a data structure that holds
+	 *                         information about a distrubuted transaction. NULL indicates
+	 *                         no transaction. 
+     * @param lock_id @input_type   Points to the lock ID. 
+     * @param req     @output_type If successful, points to a data structure that holds information
+	 *                          about the pending request. Undefined otherwise.
+	 *
+	 * @return <b>\ref LWFS_OK</b> Indicates success. 
+     * @return <b>\ref LWFS_ERR_ENCODE</b> Indicates an error encoding the request. 
+     * @return <b>\ref LWFS_ERR_RPC</b> Indicates an error in the underlying transport library
+     * @return <b>\ref LWFS_ERR_NOENT</b> Indicates that the lock ID is invalid. 
+     *
+     */
+    extern int lwfs_unlock(
+            lwfs_txn *txn_id,
+            lwfs_lock_id *lock_id,
+            lwfs_request *req); 
+
+
+#else /* K&R C */
+
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif 
+

@@ -1,0 +1,322 @@
+config_parser.lo config_parser.o: config_parser.c /usr/include/stdio.h \
+  /usr/include/features.h /usr/include/sys/cdefs.h \
+  /usr/include/bits/wordsize.h /usr/include/gnu/stubs.h \
+  /usr/include/gnu/stubs-32.h \
+  /usr/lib/gcc/i586-suse-linux/4.1.2/include/stddef.h \
+  /usr/include/bits/types.h /usr/include/bits/typesizes.h \
+  /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h \
+  /usr/include/bits/wchar.h /usr/include/gconv.h \
+  /usr/lib/gcc/i586-suse-linux/4.1.2/include/stdarg.h \
+  /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h \
+  /usr/include/string.h /usr/include/stdlib.h \
+  /usr/include/bits/waitflags.h /usr/include/bits/waitstatus.h \
+  /usr/include/sys/types.h /usr/include/time.h \
+  /usr/include/bits/pthreadtypes.h \
+  /usr/include/libxml2/libxml/xmlmemory.h \
+  /usr/include/libxml2/libxml/xmlversion.h \
+  /usr/include/libxml2/libxml/xmlexports.h \
+  /usr/include/libxml2/libxml/threads.h \
+  /usr/include/libxml2/libxml/globals.h \
+  /usr/include/libxml2/libxml/parser.h /usr/include/libxml2/libxml/tree.h \
+  /usr/include/libxml2/libxml/xmlstring.h \
+  /usr/include/libxml2/libxml/xmlregexp.h \
+  /usr/include/libxml2/libxml/dict.h /usr/include/libxml2/libxml/hash.h \
+  /usr/include/libxml2/libxml/valid.h \
+  /usr/include/libxml2/libxml/xmlerror.h \
+  /usr/include/libxml2/libxml/list.h \
+  /usr/include/libxml2/libxml/xmlautomata.h \
+  /usr/include/libxml2/libxml/entities.h \
+  /usr/include/libxml2/libxml/encoding.h /usr/include/iconv.h \
+  /usr/include/libxml2/libxml/xmlIO.h /usr/include/libxml2/libxml/SAX.h \
+  /usr/include/libxml2/libxml/xlink.h /usr/include/libxml2/libxml/SAX2.h \
+  fs_lwfs.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/types.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/xdr_types.h \
+  /usr/include/rpc/rpc.h /usr/include/rpc/types.h /usr/include/sys/time.h \
+  /usr/include/bits/time.h /usr/include/sys/select.h \
+  /usr/include/bits/select.h /usr/include/bits/sigset.h \
+  /usr/include/sys/param.h \
+  /usr/lib/gcc/i586-suse-linux/4.1.2/include/limits.h \
+  /usr/lib/gcc/i586-suse-linux/4.1.2/include/syslimits.h \
+  /usr/include/limits.h /usr/include/bits/posix1_lim.h \
+  /usr/include/bits/local_lim.h /usr/include/linux/limits.h \
+  /usr/include/bits/posix2_lim.h /usr/include/bits/xopen_lim.h \
+  /usr/include/linux/param.h /usr/include/asm/param.h \
+  /usr/include/netinet/in.h /usr/include/stdint.h \
+  /usr/include/sys/socket.h /usr/include/sys/uio.h \
+  /usr/include/bits/uio.h /usr/include/bits/socket.h \
+  /usr/include/bits/sockaddr.h /usr/include/asm/socket.h \
+  /usr/include/asm/sockios.h /usr/include/bits/in.h /usr/include/endian.h \
+  /usr/include/bits/endian.h /usr/include/bits/byteswap.h \
+  /usr/include/rpc/xdr.h /usr/include/rpc/auth.h /usr/include/rpc/clnt.h \
+  /usr/include/sys/un.h /usr/include/rpc/rpc_msg.h \
+  /usr/include/rpc/auth_unix.h /usr/include/rpc/auth_des.h \
+  /usr/include/rpc/svc.h /usr/include/rpc/svc_auth.h \
+  /usr/include/rpc/netdb.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/lwfs_config.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/lwfs_int.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/fprint_types.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/types.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/fprint_types.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/client/rpc_client/rpc_client.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/types.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/rpc_common/rpc_debug.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/support/logger/logger.h \
+  /usr/include/pthread.h /usr/include/sched.h /usr/include/bits/sched.h \
+  /usr/include/signal.h /usr/include/bits/setjmp.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/rpc_common/rpc_common.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/types.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/rpc_common/rpc_debug.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/rpc_common/lwfs_ptls.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/lwfs_config.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/rpc_common/ptl_wrap.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/lwfs_int.h \
+  /home/raoldfi/software/include/portals3.h \
+  /home/raoldfi/software/include/p3api/types.h \
+  /home/raoldfi/software/include/p3api/api.h \
+  /home/raoldfi/software/include/p3api/misc.h \
+  /home/raoldfi/software/include/p3/nal_types.h \
+  /home/raoldfi/software/include/p3/errno.h \
+  /home/raoldfi/software/include/p3nal_utcp.h \
+  /home/raoldfi/software/include/p3rt/p3rt.h \
+  /home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/support/logger/logger.h
+
+/usr/include/stdio.h:
+
+/usr/include/features.h:
+
+/usr/include/sys/cdefs.h:
+
+/usr/include/bits/wordsize.h:
+
+/usr/include/gnu/stubs.h:
+
+/usr/include/gnu/stubs-32.h:
+
+/usr/lib/gcc/i586-suse-linux/4.1.2/include/stddef.h:
+
+/usr/include/bits/types.h:
+
+/usr/include/bits/typesizes.h:
+
+/usr/include/libio.h:
+
+/usr/include/_G_config.h:
+
+/usr/include/wchar.h:
+
+/usr/include/bits/wchar.h:
+
+/usr/include/gconv.h:
+
+/usr/lib/gcc/i586-suse-linux/4.1.2/include/stdarg.h:
+
+/usr/include/bits/stdio_lim.h:
+
+/usr/include/bits/sys_errlist.h:
+
+/usr/include/string.h:
+
+/usr/include/stdlib.h:
+
+/usr/include/bits/waitflags.h:
+
+/usr/include/bits/waitstatus.h:
+
+/usr/include/sys/types.h:
+
+/usr/include/time.h:
+
+/usr/include/bits/pthreadtypes.h:
+
+/usr/include/libxml2/libxml/xmlmemory.h:
+
+/usr/include/libxml2/libxml/xmlversion.h:
+
+/usr/include/libxml2/libxml/xmlexports.h:
+
+/usr/include/libxml2/libxml/threads.h:
+
+/usr/include/libxml2/libxml/globals.h:
+
+/usr/include/libxml2/libxml/parser.h:
+
+/usr/include/libxml2/libxml/tree.h:
+
+/usr/include/libxml2/libxml/xmlstring.h:
+
+/usr/include/libxml2/libxml/xmlregexp.h:
+
+/usr/include/libxml2/libxml/dict.h:
+
+/usr/include/libxml2/libxml/hash.h:
+
+/usr/include/libxml2/libxml/valid.h:
+
+/usr/include/libxml2/libxml/xmlerror.h:
+
+/usr/include/libxml2/libxml/list.h:
+
+/usr/include/libxml2/libxml/xmlautomata.h:
+
+/usr/include/libxml2/libxml/entities.h:
+
+/usr/include/libxml2/libxml/encoding.h:
+
+/usr/include/iconv.h:
+
+/usr/include/libxml2/libxml/xmlIO.h:
+
+/usr/include/libxml2/libxml/SAX.h:
+
+/usr/include/libxml2/libxml/xlink.h:
+
+/usr/include/libxml2/libxml/SAX2.h:
+
+fs_lwfs.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/types.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/xdr_types.h:
+
+/usr/include/rpc/rpc.h:
+
+/usr/include/rpc/types.h:
+
+/usr/include/sys/time.h:
+
+/usr/include/bits/time.h:
+
+/usr/include/sys/select.h:
+
+/usr/include/bits/select.h:
+
+/usr/include/bits/sigset.h:
+
+/usr/include/sys/param.h:
+
+/usr/lib/gcc/i586-suse-linux/4.1.2/include/limits.h:
+
+/usr/lib/gcc/i586-suse-linux/4.1.2/include/syslimits.h:
+
+/usr/include/limits.h:
+
+/usr/include/bits/posix1_lim.h:
+
+/usr/include/bits/local_lim.h:
+
+/usr/include/linux/limits.h:
+
+/usr/include/bits/posix2_lim.h:
+
+/usr/include/bits/xopen_lim.h:
+
+/usr/include/linux/param.h:
+
+/usr/include/asm/param.h:
+
+/usr/include/netinet/in.h:
+
+/usr/include/stdint.h:
+
+/usr/include/sys/socket.h:
+
+/usr/include/sys/uio.h:
+
+/usr/include/bits/uio.h:
+
+/usr/include/bits/socket.h:
+
+/usr/include/bits/sockaddr.h:
+
+/usr/include/asm/socket.h:
+
+/usr/include/asm/sockios.h:
+
+/usr/include/bits/in.h:
+
+/usr/include/endian.h:
+
+/usr/include/bits/endian.h:
+
+/usr/include/bits/byteswap.h:
+
+/usr/include/rpc/xdr.h:
+
+/usr/include/rpc/auth.h:
+
+/usr/include/rpc/clnt.h:
+
+/usr/include/sys/un.h:
+
+/usr/include/rpc/rpc_msg.h:
+
+/usr/include/rpc/auth_unix.h:
+
+/usr/include/rpc/auth_des.h:
+
+/usr/include/rpc/svc.h:
+
+/usr/include/rpc/svc_auth.h:
+
+/usr/include/rpc/netdb.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/lwfs_config.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/lwfs_int.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/fprint_types.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/types.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/fprint_types.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/client/rpc_client/rpc_client.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/types.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/rpc_common/rpc_debug.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/support/logger/logger.h:
+
+/usr/include/pthread.h:
+
+/usr/include/sched.h:
+
+/usr/include/bits/sched.h:
+
+/usr/include/signal.h:
+
+/usr/include/bits/setjmp.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/rpc_common/rpc_common.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/types.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/rpc_common/rpc_debug.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/rpc_common/lwfs_ptls.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/lwfs_config.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/rpc_common/ptl_wrap.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/common/types/lwfs_int.h:
+
+/home/raoldfi/software/include/portals3.h:
+
+/home/raoldfi/software/include/p3api/types.h:
+
+/home/raoldfi/software/include/p3api/api.h:
+
+/home/raoldfi/software/include/p3api/misc.h:
+
+/home/raoldfi/software/include/p3/nal_types.h:
+
+/home/raoldfi/software/include/p3/errno.h:
+
+/home/raoldfi/software/include/p3nal_utcp.h:
+
+/home/raoldfi/software/include/p3rt/p3rt.h:
+
+/home/raoldfi/research/sandia/scalable-io/lwfs/trunk/testing/../src/support/logger/logger.h:

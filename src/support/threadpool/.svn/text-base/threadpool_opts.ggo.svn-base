@@ -1,0 +1,5 @@
+option "tp-init-thread-count" - "Initial number of thread in the pool" int default="1" optional
+option "tp-min-thread-count" - "Minimum number of thread in the pool" int default="1" optional
+option "tp-max-thread-count" - "Maximum number of thread in the pool" int default="999999999" optional
+option "tp-low-watermark" - "Request queue size at which threads are removed from the pool" int default="1" optional
+option "tp-high-watermark" - "Request queue size at which threads are added to the pool" int default="999999999" optional

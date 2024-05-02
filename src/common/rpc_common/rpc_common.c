@@ -1,0 +1,162 @@
+/*-------------------------------------------------------------------------*/
+/**  @file rpc_common.c
+ *   
+ *   @brief  Implementation of the \ref rpc_client_api "RPC Client API". 
+ *           for the LWFS. 
+ *
+ *   @author Ron Oldfield (raoldfi\@sandia.gov)
+ *   $Revision: 1368 $
+ *   $Date: 2007-04-24 11:36:33 -0600 (Tue, 24 Apr 2007) $
+ *
+ */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+
+#if STDC_HEADERS
+#include <stdlib.h>
+#include <string.h>
+#else
+#include <malloc.h>
+#endif
+
+#include <signal.h>
+
+#include "common/types/types.h"
+#include "common/types/fprint_types.h"
+#include "support/logger/logger.h"
+#include "support/signal/lwfs_signal.h"
+
+#include "rpc_common.h"
+#include "rpc_xdr.h"
+#include "lwfs_ptls.h"
+
+
+/* --------------------- Private methods ------------------- */
+
+static int rpc_initialized = FALSE; 
+
+/**
+ * @brief Initialize the LWFS RPC mechanism. 
+ * 
+ * This implementation of \b lwfs_rpc_init initializes the 
+ * Portals library and interface so that we can use Portals 
+ * as the underlying communication protocol. 
+ *
+ * @param pid  @input The ID to use for this process. 
+ */
+int lwfs_rpc_init(
+    const lwfs_rpc_transport rpc_transport, 
+    const lwfs_rpc_encode rpc_encode) 
+{
+	int rc; 
+	static lwfs_bool initialized = FALSE; 
+
+	if (initialized) return LWFS_OK;
+
+	/* check to see if logging is enabled */
+    if (logger_not_initialized()) {
+        logger_set_file(stderr);
+    }
+	
+	/* initialize the transport mechanism */
+    switch (rpc_transport) {
+        case LWFS_RPC_PTL:
+            rc = lwfs_ptl_init(PTL_IFACE_DEFAULT, PTL_PID_ANY); 
+            if (rc != LWFS_OK) {
+                log_fatal(rpc_debug_level,"failed, %s", ptl_err_str[rc]);
+                return rc;
+            }	
+            break;
+
+        default:
+            rc = LWFS_ERR_NOENT; 
+            log_error(rpc_debug_level, "the transport scheme "
+                    "does not exist");
+            return rc; 
+    }
+
+	/* initialize the xdr-encoding mechanism */
+    switch (rpc_encode) {
+
+        case LWFS_RPC_XDR: 
+            rc = lwfs_xdr_init(); 
+            if (rc != LWFS_OK) {
+                log_fatal(rpc_debug_level,"failed, %s", ptl_err_str[rc]);
+                return rc;
+            }	
+            break;
+
+        default: 
+            rc = LWFS_ERR_NOENT; 
+            log_error(rpc_debug_level, "the transport scheme "
+                    "does not exist");
+            return rc; 
+    }
+	
+	/* Install the signal handler */
+	lwfs_install_sighandler();
+
+	initialized = TRUE;
+	rpc_initialized = TRUE;
+
+	return LWFS_OK; 
+}
+
+
+/**
+ * @brief Get the process ID of this process. 
+ *
+ * @ingroup rpc_funcs
+ *
+ * The <tt>\ref lwfs_get_my_pid</tt> method gets the 
+ * \ref lwfs_remote_pid "process id" of the calling process. 
+ * 
+ * @param id @output If successful, points to the \ref lwfs_remote_pid "process ID" 
+ *                   of the calling process. Undefined otherwise.
+ *
+ * @return \ref LWFS_OK Indicates sucess. 
+ * @return \ref LWFS_ERR_RPC Indicates failure in the LWFS RPC library. 
+ *
+ */
+int lwfs_get_id(
+		lwfs_remote_pid *id)
+{
+	if (!rpc_initialized) {
+		log_error(rpc_debug_level, "RPC not initialized");
+		return LWFS_ERR;
+	}
+
+	return lwfs_ptl_get_id(id);
+}
+
+
+/**
+ * @brief Finalize the RPC mechanism. 
+ *
+ * The \b lwfs_rpc_finalize method performs any cleanup
+ * required by the underlying communication protocol 
+ * before exiting the client application. 
+ */
+int lwfs_rpc_fini() 
+{
+	int rc; 
+
+	rc = lwfs_ptl_fini(); 
+	if (rc != LWFS_OK) {
+		log_fatal(rpc_debug_level, "failed, %s", 
+				ptl_err_str[rc]);
+	}
+
+	rc = lwfs_xdr_fini(); 
+	if (rc != LWFS_OK) {
+		log_fatal(rpc_debug_level, "failed, %s", 
+				ptl_err_str[rc]);
+	}
+
+
+	return LWFS_OK;
+}
+

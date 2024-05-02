@@ -1,0 +1,16 @@
+K 10
+svn:ignore
+V 109
+rpc_client
+rpc_server
+test_lwfs_ptl_put
+Makefile.in
+Makefile
+.deps
+xfer-xdr.c
+xfer.h
+*.dat
+output
+*.machines
+
+END

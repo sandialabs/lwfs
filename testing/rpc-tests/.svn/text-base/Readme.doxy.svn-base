@@ -1,0 +1,34 @@
+/**
+ * @file Readme.doxy
+ */
+
+ /**
+ * \mainpage Analysis of LWFS RPC
+ *
+ * \section Intoduction
+ *
+ * The experiments in this directory compare the throughput 
+ * (measured in MB/sec) of the LWFS RPC mechanism to various 
+ * other approaches.  Each experiment consists of two processes: 
+ * a client that sends an integer followed by an array of 16-byte 
+ * data structures to the server, and a server that receives the 
+ * array of 16-byte data structures and returns a single 16-byte
+ * data structure to the client. Each 16-byte data structure 
+ * (shown below) consists of a 4-byte integer, a 4-byte float, 
+ * and a 8-byte double. 
+ *
+ * \code
+ * struct test_data {
+ *	 int int_val (4 bytes);
+ *	 float float_val  (4 bytes);
+ *	 double double_val (8 bytes);
+ * }; 
+ * 
+ * We calculate the throughput with the following equation: 
+ * \f[
+ *     T=\frac{(4+(n+1)*16)}{t},
+ * \f]
+ * where \f$T\f$ is the throughput in MB/sec, \f$n\f$ is the size of the 
+ * array sent to the server, and \f$t\f$ is the round-trip time for 
+ * the operation. 
+ */

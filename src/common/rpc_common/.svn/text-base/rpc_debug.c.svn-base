@@ -1,0 +1,15 @@
+/*-------------------------------------------------------------------------*/
+/**  @file rpc_debug.c
+ *   
+ *   @brief Set the global debug level for the rpc mechanism.
+ *   
+ *   @author Ron Oldfield (raoldfi\@sandia.gov).
+ *   $Revision$.
+ *   $Date$.
+ *
+ */
+
+#include "rpc_debug.h"
+
+/* set to LOG_UNDEFINED -- log commands will use default level */
+log_level rpc_debug_level = LOG_UNDEFINED; 

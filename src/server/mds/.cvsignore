@@ -1,0 +1,15 @@
+.deps
+.libs
+*.swp
+Makefile
+Makefile.in
+libmds.la
+mds
+mds_clnt.lo
+mds_db.lo
+mds_debug.lo
+mds_srvr.lo
+mds_xdr.c
+mds_xdr.h
+mds_xdr.lo
+mds_db_access.lo

@@ -1,0 +1,17 @@
+K 10
+svn:ignore
+V 92
+*.la
+*.lo
+*.o
+ss_test
+log.txt
+Makefile.in
+Makefile
+.deps
+ss-root
+main_local.c
+*.db
+*.db.2nd
+
+END

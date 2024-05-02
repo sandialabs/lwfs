@@ -1,0 +1,47 @@
+TODO list for LWFS implementation:
+
+RPC:
+	- Test and correct bugs in long requests and results. 
+
+Storage service: 
+	- I don't really like the way Bill implemented the original
+	  storage service.  There is no way to recover from a failure.
+	  We should implement each storage server to recover the 
+	  object-namespace from the database when it restarts. 
+
+Authentication service: 
+	- Ruth got the gss-api tests to work with a simple client server. 
+	  We need to create an LWFS service to perform authentication in
+	  the same way.  Use the authorization server code as a template. 
+
+Naming service:
+	- Our naming service is rather simple.  We need experiments to 
+	  examine the performance of the naming service.  
+
+FUSE client: 
+	- Update the fuse client to work with the LWFS naming, authr, and 
+	  storage service.  Run experiments on known benchmarks. 
+
+Libsysio library:
+	- We need to implement an LWFS driver for the libsysio library.  Run
+	  experiments on known benchmarks (
+
+Integration with overlay networks: 
+	- We need to figure out what changes to make to work with overlay
+	  networks.  This will be the primary job of Jay Lofstead. 
+
+Transaction support:
+	- We need to make changes to the client APIs for the authorization 
+	  and naming services that allow the client to generate most of 
+	  the information for an entry. For example, if the client generates
+	  its own cap, then sends it to the authorization service for 
+	  approval, the client can perform other operations with the expectation
+	  that the capability is good before it even receives authorization
+	  from the authr svc.  Widener will explore these issues and write
+	  a document describing our requirements. 
+
+	- Need to design implement and integrate recovery/roll-back 
+	  protocols that execute when a transaction aborts. 
+
+Authorization service: 
+	- 

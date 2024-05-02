@@ -1,0 +1,25 @@
+/**  
+ *   @file naming_debug.h
+ *   
+ *   @author Ron Oldfield (raoldfi\@sandia.gov)
+ *   $Revision$
+ *   $Date$
+ *
+ */
+
+#ifndef _NAMING_DEBUG_H_
+#define _NAMING_DEBUG_H_
+
+#include "support/logger/logger.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+	extern log_level naming_debug_level;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif 

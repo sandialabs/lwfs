@@ -1,0 +1,7 @@
+types.c
+types.h
+*.lo
+*.la
+Makefile
+Makefile.in
+.deps

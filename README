@@ -1,0 +1,90 @@
+
+Configuring and compiling the LWFS. 
+
+Software requirements for LWFS: 
+ - Portals version >= 3.2
+ - Sleepycat (a.k.a. Berkeley DB) version >= 4.2
+ - GSS-API (soon...)
+ - Kerberos (soon...)
+
+Options for LWFS
+  - Pablo (for performance analysis -- instrumented tracing)
+
+Options for testing
+  - 
+
+
+Lines that start with a "%" are statements that should be executed
+from a unix command line. 
+
+
+
+------- Download, configure, and make Portals ---------
+
+To download a stable version of Portals (v 3.2), 
+
+% cvs -d:pserver:anonymous@cvs.sourceforge.net:/cvsroot/sandiaportals login
+
+At the password prompt, press <RETURN>. Then,
+
+% cvs -z3 -d:pserver:anonymous@cvs.sourceforge.net:/cvsroot/sandiaportals co -r Portals_Update-branch portals
+
+This should download Portals version 3.2 into a directory named "portals".
+To configure and make the non-kernel version of portals, 
+
+% cd portals
+% ./autogen.sh
+% ./configure --enable-only-user-level-nals --enable-portals-tests --prefix=<PATH TO PORTALS>
+% make
+% make install
+
+The portals distribution should now be in the <PATH TO PORTALS> directory.
+
+
+
+
+------- Download, configure, and make DB 4.2 ---------
+
+To download the sleepycat DB, goto <http://www.sleepycat.com/download/>
+and follow the links to download the latest stable version of sleepycat. 
+I downloaded version 4.2.52.  Note that the Redhat 9 distribution includes
+the package db4-4.0, but there are some API changes between version 4.0
+and version 4.2.  We should probably use versions >= 4.2. 
+
+After downloading tar file,
+
+% tar xvfz db-4.2.52.tar.gz
+
+This will put the source code in the directory "db-4.2.52". 
+To configure and make db-4.2, 
+
+% cd db-4.2.52;
+% cd build_unix;
+% ../dist/configure --prefix=<PATH TO DB4.2>
+% make
+% make install
+
+Now, the db-4.2 distribution should be installed in <PATH TO DB4.2>
+
+
+
+------- Download, configure, and make LWFS ---------
+
+To download the latest CVS version of lwfs, 
+
+% setenv CVS_RSH ssh
+% cvs -d :ext:<YOUR LOGIN>@software.sandia.gov/home/raoldfi/cvsroot checkout lwfs
+
+Replace <YOUR LOGIN> with your login name.  The source code should be in
+a directory named "lwfs". 
+
+To configure and make LWFS, 
+
+% cd lwfs
+% ./autogen.sh
+% ./configure
+% make
+
+Note that all required libraries need to be in the search path.  
+Use LDFLAGS="path to libs" and CPPFLAGS="path to includes" if these
+libraries are installed in non-standard locations. 

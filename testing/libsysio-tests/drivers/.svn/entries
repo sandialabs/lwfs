@@ -1,0 +1,53 @@
+8
+
+dir
+1290
+svn+ssh://raoldfi@software.sandia.gov/home/raoldfi/repos/lwfs/trunk/testing/libsysio-tests/drivers
+svn+ssh://raoldfi@software.sandia.gov/home/raoldfi/repos/lwfs
+
+
+
+2007-03-06T21:33:11.168133Z
+1290
+thkorde
+has-props
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+385ae4e5-3006-0410-94d9-fca899295522
+
+incore
+dir
+
+native
+dir
+
+Makefile.am
+file
+
+
+
+
+2007-03-06T16:29:29.000000Z
+00fccbe4d4a333508b8ef363121b1c45
+2007-03-06T16:09:55.039031Z
+1282
+thkorde
+
+lwfs
+dir
+
+
+
+delete
+

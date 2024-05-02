@@ -1,0 +1,216 @@
+/*-------------------------------------------------------------------------*/
+/**  @file logger.c
+ *   
+ *   @brief This file contains method defintions for the logger API.
+ *   
+ *   The logger API is a simple API for logging events to a file 
+ *   (or to stderr or stdio)
+ *   
+ *   @author Ron Oldfield (raoldfi\@sandia.gov).
+ *   $Revision: 1390 $.
+ *   $Date: 2007-04-24 11:54:46 -0600 (Tue, 24 Apr 2007) $.
+ *
+ */
+ 
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
+#include "logger.h"
+
+#include <pthread.h>
+
+#ifdef HAVE_PTHREAD
+
+static pthread_mutex_t logger_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+
+void logger_mutex_lock() {
+	pthread_mutex_lock(&logger_mutex);
+}
+
+void logger_mutex_unlock() {
+	pthreadm_mutex_unlock(&logger_mutex);
+}
+
+#else
+
+void logger_mutex_lock() {
+	return;
+}
+
+void logger_mutex_unlock() {
+	return;
+}
+
+#endif
+
+ 
+log_level default_log_level = LOG_WARN; 
+static FILE *log_file = NULL; 
+
+
+
+/**
+ * @brief Initialize the logging capabilities.
+ *
+ * @param fp    File pointer of the logging output.
+ * @param level Log level (LOG_ALL, LOG_DEBUG, LOG_INFO, 
+ * LOG_WARN, LOG_ERROR, LOG_FATAL, or LOG_OFF)
+ *
+ */
+int logger_init(const log_level debug_level,  const char *logfile)  {
+    int rc = 0; 
+
+    /* initialie the default debug level */
+    if (debug_level == 0) 
+	logger_set_default_level(LOG_OFF);
+    else if (debug_level > 5) 
+	logger_set_default_level(LOG_ALL);
+    else 
+	logger_set_default_level(debug_level - LOG_OFF);
+
+    /* initialize the logfile */
+    if (logfile == NULL) {
+	logger_set_file(stdout);
+    }
+    else if (strcasecmp("stdout", logfile) == 0) {
+	logger_set_file(stdout); 
+    }
+
+    else if (strcasecmp("stderr", logfile) == 0) {
+	logger_set_file(stderr);
+    }
+
+    else {
+	FILE *fp = fopen(logfile, "w+");
+	if (fp == NULL) { 
+	    fprintf(stderr, "could not create log file \"%s\"\n",logfile);
+	    return -1; 
+	}
+	else {
+	    logger_set_file(fp);
+	}
+    }
+
+    return rc; 
+}
+
+int logger_not_initialized() {
+	return log_file == NULL; 
+}
+
+/**
+ * @brief Set the file for the log information. 
+ */
+void logger_set_file(FILE *newfile) {
+	log_file = newfile; 
+}
+
+FILE *logger_get_file() {
+	if (!log_file)
+		return stdout;
+	else 
+		return log_file; 
+}
+
+
+/**
+ * @brief Set the default log level.
+ * 
+ * The different log levels are LOG_ALL, LOG_DEBUG, LOG_INFO, LOG_WARN, 
+ * LOG_ERROR, LOG_FATAL, and LOG_OFF.
+ */
+void logger_set_default_level(const log_level newlevel) {
+	default_log_level = newlevel;
+}
+
+/**
+ * @brief Return the default log level.
+ */
+log_level logger_get_default_level(void)
+{
+	return default_log_level;
+}
+
+/**
+ * @brief Output a log message. 
+ *
+ * This method should be called by one of the inline
+ * methods log_debug, log_info, log_warn, log_error, or 
+ * log_fatal. 
+ */
+void log_output(const char *prefix, 
+		const char *func_name,
+		const char *file_name, 
+		const int line_num, 
+		const char *msg,
+		...) {
+	va_list ap; 
+	char *file; 
+
+	/* we don't want an invalid logfile */
+	if (log_file == NULL) {
+		log_file = stdout;
+	}
+
+	/* path from the "lwfs" root dir */
+        /*
+	file = strstr(file_name, "lwfs\/");
+        */
+        
+        /* path from last '/' */
+	file = strrchr(file_name, '/'); 
+
+	logger_mutex_lock();
+	va_start(ap, msg); 
+	fprintf(log_file, "%s [%s:%s:%d]: ", 
+			prefix, 
+			func_name, 
+			(file == NULL) ? file_name : &(file[1]) ,
+			line_num);
+	vfprintf(log_file, msg, ap);
+	fprintf(log_file, "\n");
+	va_end(ap); 
+	fflush(log_file); 
+	logger_mutex_unlock();
+}
+
+/*-------------------------------------------------------------------------
+ * Revision history
+ *
+ * $Log$
+ * Revision 1.9  2005/10/26 22:25:22  thkorde
+ * added lock to protect logging output.
+ *
+ * Revision 1.8  2005/07/19 20:37:37  raoldfi
+ * Now flushes the output stream after a log statement.
+ *
+ * Revision 1.7  2004/09/13 15:18:07  raoldfi
+ * added a "_t" to all lwfs defined types.
+ *
+ * Revision 1.6  2004/08/13 23:07:41  raoldfi
+ * changed the log output to include the file name without the full path.
+ *
+ * Revision 1.5  2004/02/23 17:05:07  raoldfi
+ * Added an input log_level variable to the logging interface
+ * and added function name, file name, and line number to the
+ * output of a log message.
+ *
+ * Revision 1.4  2004/02/19 22:57:05  raoldfi
+ * added logger_get_file() method that returns the file pointer.
+ *
+ * Revision 1.3  2004/02/06 23:03:25  raoldfi
+ * added include file for <stdlib.h>
+ *
+ * Revision 1.2  2004/02/03 18:00:53  raoldfi
+ * added logger_init method.
+ *
+ * Revision 1.1  2003/12/20 00:04:37  raoldfi
+ * a simple interface for logging events to the console.
+ *
+ * Revision 1.4  2003/12/17 22:12:22  raoldfi
+ * final commit before releasing to lwfs group.
+ *
+ *
+ */

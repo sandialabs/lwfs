@@ -1,0 +1,8 @@
+*.la
+*.lo
+*.o
+ss_test
+log.txt
+Makefile.in
+Makefile
+.deps

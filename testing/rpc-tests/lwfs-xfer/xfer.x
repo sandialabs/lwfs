@@ -1,0 +1,39 @@
+/* -------------------------------------------------------------------------- */
+/**  
+ *   @file simple_svc_xdr.x
+ *   
+ *   @brief Type definitions for a simple rpc service. 
+ *
+ *   @author Ron Oldfield (raoldfi\@cs.sandia.gov).
+ *   $Revision: 1073 $.
+ *   $Date: 2007-01-22 22:06:53 -0700 (Mon, 22 Jan 2007) $.
+ *
+ */
+
+/* Include files for the mds_xdr.h file (ignored by others) */
+#ifdef RPC_HDR
+#endif 
+
+struct data_t {
+	int int_val;
+	float float_val;
+	double double_val; 
+};
+
+typedef data_t data_array_t<>;
+
+struct xfer_1_args {
+	data_array_t array; 
+}; 
+
+struct xfer_2_args {
+	int len; 
+}; 
+
+
+program XFER_PROG {
+	version XFER_VERS {
+		data_t xfer(data_array_t) = 1;
+	} = 1; 
+} = 0x23451111; 
+

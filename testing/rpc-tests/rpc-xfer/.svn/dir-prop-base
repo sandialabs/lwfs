@@ -1,0 +1,12 @@
+K 10
+svn:ignore
+V 73
+rpc_client
+rpc_server
+test_lwfs_ptl_put
+Makefile.in
+Makefile
+.deps
+*.out
+
+END

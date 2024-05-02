@@ -1,0 +1,187 @@
+/**  
+ *   @file queue.c
+ * 
+ *   @brief Simple implementation of a thread-safe queue. 
+ *
+ *   @author Ron Oldfield (raoldfi\@sandia.gov)
+ *   $Revision$
+ *   $Date$
+ */
+#include "config.h"
+
+#if STDC_HEADERS
+#include <stdlib.h>
+#include <string.h>
+#endif
+
+#include <pthread.h>
+#include <errno.h>
+#include "storage_server.h"
+#include "queue.h"
+
+#define TIMEOUT 5
+
+/**
+ * @brief Create a thread-safe queue. 
+ *
+ * @param  q  @output The resulting queue.
+ */
+int queue_init(struct queue *q) {
+
+	/* initialize the queue data structure */
+	memset(q, 0, sizeof(struct queue));
+	q->head = NULL;
+	q->tail = NULL;
+	pthread_mutex_init(&q->mutex, NULL); 
+	pthread_cond_init(&q->cond, NULL); 
+	
+	return LWFS_OK;
+}
+
+/**
+ * @brief Destroy a queue.
+ *
+ * @param  queue  @input The queue.
+ */
+int queue_destroy(struct queue *q, void (*free_op)(void *))
+{
+	int rc = LWFS_OK;
+	void *data; 
+
+	while (!queue_empty(q)) {
+		data = queue_pop(q);
+		if (data != NULL) {
+			free_op(data);
+		}
+	}
+
+	if (pthread_mutex_destroy(&q->mutex) != 0) {
+		log_error(ss_debug_level, "unable to destroy queue mutex");
+		return LWFS_ERR; 
+	}
+
+	if (pthread_cond_destroy(&q->cond) != 0) {
+		log_error(ss_debug_level, "unable to destroy queue mutex");
+		return LWFS_ERR; 
+	}
+
+
+	return rc; 
+}
+
+/**
+ * @brief Returns true if the queue is empty.
+ *
+ * @param q  @input  The queue.
+ *
+ * @returns True if the queue is empty, false otherwise. 
+ */
+lwfs_bool queue_empty(struct queue *q) {
+	return (q->head == NULL);
+}
+
+
+/**
+ * @brief Remove a data element from the front of the list. 
+ *
+ * @param q @input The queue. 
+ */
+void *queue_pop(struct queue *q) 
+{
+	int rc = LWFS_OK;
+	struct queue_node *node = NULL; 
+	void *data = NULL; 
+	struct timespec ts; 
+	struct timeval tp;
+
+	if (pthread_mutex_lock(&q->mutex) != 0) {
+		log_error(ss_debug_level, "unable to lock mutex");
+		return NULL; 
+	}
+
+#ifdef HAVE_CLOCK_GETTIME
+	clock_gettime(CLOCK_REALTIME, &ts);
+#else
+	gettimeofday( &tp, NULL );
+	ts.tv_sec = tp.tv_sec;
+	ts.tv_nsec = tp.tv_usec * 1000;
+#endif
+
+	ts.tv_sec += TIMEOUT; 
+
+	/* if the queue is empty, wait for someone to add an item */
+	while (queue_empty(q)) {
+		rc = pthread_cond_timedwait(&q->cond, &q->mutex, &ts);
+		if (rc == ETIMEDOUT) {
+			//log_warn(ss_debug_level, "timed out on \"pop\"");
+			data = NULL;
+			goto unlock;
+		}
+	}
+
+	/* remove the top item from the list */
+	node = q->head; 
+	q->head = node->next; 
+
+	if (q->head != NULL) {
+		q->head->prev = NULL; 
+	}
+
+	data = node->data; 
+
+	/* free the node */
+	free(node); 
+
+unlock:
+	if (pthread_mutex_unlock(&q->mutex) != 0) {
+		log_error(ss_debug_level, "unable to unlock mutex");
+		return NULL; 
+	}
+
+	return data; 
+}
+
+int queue_append(struct queue *q, void *data) 
+{
+	int rc = LWFS_OK;
+	struct queue_node *node = NULL; 
+
+	if (pthread_mutex_lock(&q->mutex) != 0) {
+		log_error(ss_debug_level, "unable to lock queue mutex");
+		return LWFS_ERR; 
+	}
+
+	/* allocate a new node */
+	node = (struct queue_node *)malloc(1*sizeof(struct queue_node));
+	if (!node) {
+		log_error(ss_debug_level, "unable to allocate queue node");
+		goto unlock;
+	}
+
+	memset(node, 0, sizeof(struct queue_node));
+
+	node->data = data; 
+
+	/* put the entry at the end of the list */
+	if (queue_empty(q)) {
+		q->head = node; 
+		q->tail = node; 
+	}
+	else {
+		q->tail->next = node; 
+		node->prev = q->tail; 
+		node->next = NULL; 
+		q->tail = node; 
+	}
+
+	/* signal any waiting threads */
+	pthread_cond_signal(&q->cond);
+
+unlock:
+	if (pthread_mutex_unlock(&q->mutex) != 0) {
+		log_error(ss_debug_level, "unable to unlock queue mutex");
+		return LWFS_ERR; 
+	}
+
+	return rc; 
+}

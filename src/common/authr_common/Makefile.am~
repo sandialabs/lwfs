@@ -1,0 +1,38 @@
+INCLUDES  = $(all_includes)
+INCLUDES += -I$(top_srcdir)/src
+
+METASOURCES = AUTO
+
+AM_LIBS = $(CLIENT_LIBS)
+AM_CFLAGS = $(CLIENT_CFLAGS)
+<<<<<<< .working
+AM_CPPFLAGS = -Wall -Wno-unused-variable -Wno-strict-aliasing -D_GNU_SOURCE $(CLIENT_CPPFLAGS)
+=======
+>>>>>>> .merge-right.r1262
+
+noinst_LTLIBRARIES = libauthr_common.la
+
+libauthr_common_la_SOURCES = authr_args.c
+libauthr_common_la_SOURCES += authr_xdr.c
+libauthr_common_la_SOURCES += authr_debug.c
+
+libauthr_common_la_LIBADD = $(PORTALS_LIBS)
+
+noinst_HEADERS = authr_args.h 
+noinst_HEADERS += authr_debug.h 
+noinst_HEADERS += authr_opcodes.h 
+noinst_HEADERS += authr_trace.h 
+noinst_HEADERS += authr_xdr.h 
+
+authr_args.lo: authr_args.c
+	$(LTCOMPILE) -Wno-unused-variable -c $<
+
+authr_args.c : authr_args.h
+	rm -f authr_args.c
+	rpcgen -c authr_args.x > authr_args.c
+
+authr_args.h: authr_args.x
+	rm -f authr_args.h
+	rpcgen -h authr_args.x -o authr_args.h
+
+CLEANFILES = authr_args.c authr_args.h

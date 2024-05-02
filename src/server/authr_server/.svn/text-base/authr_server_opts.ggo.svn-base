@@ -1,0 +1,11 @@
+option "num-reqs" - "Number of requests before exit" int default="-1" optional
+option "authr-pid" - "PID to use for the authorization service" int default="124" optional
+option "use-threads" - "Flag to use threads for the server" flag off
+option "daemon" - "Flag to run server as a daemon" flag off
+option "authr-verify-caps" - "Flag to verify all capabilities" flag on
+option "authr-db-clear" - "Flag to clear the authorization database" flag off
+option "authr-db-path" - "Path to the db file" string default="authr.db" optional
+option "authr-db-recover" - "Flag to recover the database" flag off
+option "authr-trace" - "Enable tracing" flag off
+option "authr-tracefile" - "Path to the trace file" string default="authr-trace.sddf" optional
+option "authr-traceftype" - "File type of tracefile (0=binary, 1=ASCII)" int default="0" optional

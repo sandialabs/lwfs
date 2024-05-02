@@ -1,0 +1,8 @@
+option  "oid"     - "The object ID to use" int default="1" optional
+option "offset"  - "The offset into an object" int default="0" optional
+option "data"    - "Character string stored in an object" string default="hello world" optional
+option "devfs"   - "Path to a block-device file" string default="ebofs.disk" optional
+option "trunc-size"  - "Size (bytes) of a file after the trunc test" int default="32" optional
+option "attr-name"  - "Name of an attribute" string default="testattr" optional
+option "attr-val"  - "Value to store in an attribute" int default="73" optional
+option "testid"  - "ID of the test" int default="2" optional

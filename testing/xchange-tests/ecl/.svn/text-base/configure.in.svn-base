@@ -1,0 +1,165 @@
+AC_INIT
+AC_CONFIG_SRCDIR([ecl.y])
+
+AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_AUX_DIR(config)
+AC_CONFIG_MACRO_DIR([config])
+AM_INIT_AUTOMAKE(ecl,1.0)
+
+AM_MAINTAINER_MODE
+
+AC_PROG_CC
+AC_CANONICAL_HOST
+CERCS_SET_ARCHIVE
+
+segmented_pointers=false
+AC_ARG_ENABLE(segmented-pointers,[Allow segmented pointers],
+[
+	AC_MSG_WARN([
+		  --  building segmented pointer capability --  
+	])
+	AC_DEFINE(SEGMENTED_POINTERS,1,[Define to enable pointers dereferenced through a non-default segment])
+	segmented_pointers=true
+])
+
+kernel_build=false
+dnl
+dnl  This has to go *after* AC_PROG_CC and before AC_PROG_LIBTOOL
+dnl
+AC_ARG_ENABLE(kernel-build,[Build for inclusion in the kernel],
+[
+case "${host_os}" in
+linux-gnu*)
+	AC_MSG_WARN([
+		--  building as a Linux kernel module  --  
+])
+	CPPFLAGS="$CPPFLAGS -I$srcdir/kernel -I/usr/src/linux/include"
+	if test $ac_cv_c_compiler_gnu = yes; then
+		CFLAGS="-fomit-frame-pointer -g -O2"
+	fi
+	KERNEL_VERSION=`awk -F\" '/REL/ {print $$2}' /usr/src/linux/include/linux/version.h`
+	AC_DEFINE(LINUX_KERNEL_MODULE,1,[Define if compiling for linux kernel])
+	kernel_build=true
+	enable_shared=no
+	;;
+*)
+	AC_MSG_WARN("--enable-kernel-build ignored on non Linux platforms")
+	;;
+esac
+])
+                                                                                
+kplugins_integration=false
+AC_ARG_ENABLE(kplugins-integration,[  --enable-kplugins-integration    Include glue logic to integrate with the Kernel Plugins infrastructure],
+[
+        AC_DEFINE(KPLUGINS_INTEGRATION,1,[Define if integrating with kernel plugins])
+	AC_MSG_WARN([
+		--  integrating with Kernel Plugins  --  
+])
+        kplugins_integration=true
+])
+
+AM_CONDITIONAL(KERNEL, test x$kernel_build = xtrue)
+AC_SUBST(KERNEL_VERSION)
+
+dnl Checks for programs.
+AC_PATH_PROG(AR, ar)
+AC_PATH_PROG(LD, ld)
+AC_PATH_PROG(RM, rm)
+AC_PATH_PROG(NM, nm)
+AC_PATH_PROGS(PERL, perl5 perl, perl)
+AC_PROG_INSTALL
+AC_PROG_YACC
+AM_PROG_LEX
+AC_PROG_LN_S
+AM_PROG_LIBTOOL
+
+AC_C_INLINE
+VCODE=vcode
+OBJEXT="o"
+EXEEXT=""
+LIBEXT="a"
+PRELIB="lib"
+case "$host" in
+     mips-sgi-irix6*)
+	if test "$GCC" != "yes"; then
+	    CFLAGS="$CFLAGS -woff 1110,1167"
+	fi;;
+    i86pc*-*-*)
+        VCODE=vcode_x86;;
+   i*86-*-winnt4 | i*86-*-cygwin)
+	OBJEXT="obj"
+	EXEEXT=".exe"
+	LIBEXT="lib"
+	PRELIB=""
+	CFLAGS="$CFLAGS /MT -DYY_USE_PROTOS"
+#	CDBG_FLAGS="/Z7 /W3 /GX /Od /YX /Yd /MTd"
+        VCODE=vcode_x86;;
+    i*86-*-linux-*)
+	VCODE=vcode_x86;;
+     *)
+esac
+
+CERCS_REQUIRE_PACKAGE(atl,atl.h,libatl.la)
+CERCS_REQUIRE_PACKAGE(cercs_env,cercs_env.h,libcercs_env.la)
+if test -n "$cercs_cv_cercs_env_link_dir" -o -n "$with_local_specified"; then
+    LIBS="$LIBS -lcercs_env"
+fi
+if test -n "$cercs_cv_atl_link_dir" -o -n "$with_local_specified"; then
+    LIBS="$LIBS -latl"
+fi
+CERCS_REQUIRE_PACKAGE(drisc,drisc.h,libdrisc.la)
+if test -n "$with_local_specified"; then
+   cercs_cv_drisc_include_arg="-I../drisc";
+   ac_cv_header_drisc_h=yes
+fi
+if test -z "$cercs_cv_drisc_include_arg"; then
+if test "$VCODE" = vcode_x86; then
+CERCS_REQUIRE_PACKAGE(tcc_cg/vcode_x86,vcode.h,${PRELIB}vcode.${LIBEXT})
+else
+CERCS_REQUIRE_PACKAGE(tcc_cg/vcode,vcode.h,${PRELIB}vcode.${LIBEXT})
+fi
+CERCS_REQUIRE_PACKAGE(tcc_cg/icode,icode.h,${PRELIB}icode.${LIBEXT})
+XLATE_PATH=$cercs_cv_tcc_cg_icode_link_dir
+if test -n "$cercs_cv_tcc_cg_icode_include_arg"; then
+XLATE_C=xlate.c
+XLATE_O=xlate.lo
+fi
+AC_SUBST(XLATE_PATH)
+AC_SUBST(XLATE_C)
+AC_SUBST(XLATE_O)
+AC_SUBST(VCODE)
+AC_CHECK_LIB(vcode, v_clambda,[test],,[$LDPOSTFLAGS])
+AC_CHECK_LIB(icode, i_op2class,[DCG_LIBS="-lvcode -licode"],,[-lvcode $LDPOSTFLAGS])
+else
+DCG_LIBS="-ldrisc"
+GENERAL_TEST=./general$ac_exeext
+fi
+AC_SUBST(GENERAL_TEST)
+AC_CHECK_LIB(m,sqrt,[MATH_LIB=-lm])
+AC_SUBST(MATH_LIB)
+AC_SUBST(DCG_LIBS)
+AC_SUBST(LIBEXT)
+AC_SUBST(OBJEXT)
+AC_SUBST(EXEEXT)
+AC_SUBST(PRELIB)
+AC_SUBST(LDPOSTFLAGS)
+AC_SUBST(CDBG_FLAGS)
+dnl checks for header files
+AC_HEADER_STDC
+AC_CHECK_HEADERS(windows.h atl.h cercs_env.h)
+if test -z "$cercs_cv_drisc_include_arg"; then
+AC_CHECK_HEADER(icode.h, [test_sub=run_time_tests
+AC_DEFINE(HAVE_ICODE_H,1,[Define to 1 if you have the <icode.h> header file.])],
+AC_DEFINE(NO_CODE_GENERATION,1,[Define if neither icode nor drisc are available for this platform]))
+else
+AC_CHECK_HEADER(drisc.h, [test_sub=run_time_tests
+AC_DEFINE(HAVE_DRISC_H,1,[Define to 1 if you have the <drisc.h> header file.])],
+AC_DEFINE(NO_CODE_GENERATION,1,[Define if neither icode nor drisc are available for this platform]))
+fi
+AC_SUBST(test_sub)
+
+dnl checks for typedefs, structures and compiler characteristics
+AC_PRINTF_DEFINED
+
+AC_CONFIG_FILES([Makefile tests/Makefile])
+AC_OUTPUT

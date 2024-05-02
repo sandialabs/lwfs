@@ -1,0 +1,269 @@
+/**
+ *   @file fprint_types.h
+ *
+ *   @brief Type definitions and method prototypes for
+ *   the LWFS.
+ *
+ *   This file includes the necessary data structures
+ *   required by an application that uses the LWFS.
+ *
+ *   @author Ron Oldfield (raoldfi\@sandia.gov)
+ *   $Revision$
+ *   $Date$
+ *
+ */
+
+#ifndef _FPRINT_UTIL_TYPES_H_
+#define _FPRINT_UTIL_TYPES_H_
+
+#include <stdio.h>
+#include "types.h"    /* types for LWFS */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#if defined(__STDC__) || defined(__cplusplus)
+
+    extern const char* lwfs_err_str(const int rc);
+
+    /**
+     * @brief Print out a return code.
+     *
+     * @param fp @input_type The output file.
+     * @param name @input_type The name of the variable.
+     * @param prefix @input_type Text that precedes the variable.
+     * @param rc @input_type The return code.
+     */
+    void fprint_lwfs_return_code(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const int rc);
+
+    extern void fprint_lwfs_uuid(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_uuid *uuid);
+
+    extern void fprint_lwfs_uid_array(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_uid_array *uid_array);
+
+    /**
+     * @brief Output the contents of a process ID
+     *
+     * @param fp      @input_type File pointer (where to send output)
+     * @param name    @input_type The name of the variable.
+     * @param prefix  @input_type Text to put on every line before the output.
+     * @param id      @input_type The remote pid
+     */
+    extern void fprint_lwfs_remote_pid(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_remote_pid *id);
+
+    /**
+     * @brief Output the contents of an LWFS remote memory address.
+     *
+     * @param fp      @input_type File pointer (where to send output)
+     * @param name    @input_type The variable name.
+     * @param prefix  @input_type Text to put on every line before the output.
+     * @param addr    @input_type The remote memory address.
+     */
+    extern void fprint_lwfs_rma(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_rma *addr);
+
+
+    /**
+     * @brief Output the contents of a request header.
+     *
+     * @param fp      @input_type File pointer (where to send output)
+     * @param name    @input_type The name of the variable.
+     * @param prefix  @input_type Text to put on every line before the output.
+     * @param hdr     @input_type The request header.
+     */
+    extern void fprint_lwfs_request_header(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_request_header *hdr);
+
+    /**
+     * @brief Output the contents of a result header.
+     *
+     * @param fp      @input_type File pointer (where to send output)
+     * @param name    @input_type The name of the variable.
+     * @param prefix  @input_type Text to put on every line before the output.
+     * @param hdr     @input_type The result header.
+     */
+    extern void fprint_lwfs_result_header(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_result_header *hdr);
+
+
+    extern void fprint_lwfs_mac(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_mac *mac);
+
+    extern void fprint_lwfs_cred_data(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_cred_data *cred_data);
+
+    extern void fprint_lwfs_cred(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_cred *cred);
+
+    extern void fprint_lwfs_cap_data(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_cap_data *cap_data);
+
+    extern void fprint_lwfs_cap(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_cap *cap);
+
+    extern void fprint_lwfs_cap_list(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_cap_list *cap_list);
+
+    extern void fprint_lwfs_rpc_encode(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_rpc_encode *rpc_encode);
+
+    extern void fprint_lwfs_service(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_service *svc);
+
+    extern void fprint_lwfs_ssize(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_ssize *ssize);
+
+    extern void fprint_lwfs_time(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_time *time);
+
+    extern void fprint_lwfs_stat_data(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_stat_data *data);
+
+    extern void fprint_lwfs_cid(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_cid *cid);
+
+    extern void fprint_lwfs_lock_id(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_lock_id *lock_id);
+
+    extern void fprint_lwfs_obj(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_obj *obj);
+
+    extern void fprint_lwfs_txn(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_txn *txn);
+
+    extern void fprint_lwfs_name(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_name *nm);
+
+    extern void fprint_lwfs_namespace(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_namespace *ns);
+
+    extern void fprint_lwfs_namespace_array(
+	    FILE *fp, 
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_namespace_array *array);
+
+    extern void fprint_lwfs_lock_type(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_lock_type *type);
+
+    extern void fprint_lwfs_distributed_obj(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_distributed_obj *dso);
+
+    extern void fprint_lwfs_ns_entry(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_ns_entry *ns_entry);
+
+    extern void fprint_lwfs_ns_entry_array(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_ns_entry_array *array);
+
+    extern void fprint_lwfs_oid(
+	    FILE *fp,
+	    const char *name,
+	    const char *prefix,
+	    const lwfs_oid *oid);
+
+#else /* K&R C */
+    extern void fprint_lwfs_remote_pid();
+    extern void fprint_lwfs_request_header();
+    extern void fprint_lwfs_result_header();
+    extern void fprint_lwfs_cred_data();
+    extern void fprint_lwfs_cred();
+    extern void fprint_lwfs_cap_data();
+    extern void fprint_lwfs_cap();
+    extern void fprint_lwfs_cap_list();
+    extern void fprint_lwfs_oid();
+
+#endif /* K&R C */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

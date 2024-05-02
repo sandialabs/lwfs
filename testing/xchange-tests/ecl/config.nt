@@ -1,0 +1,17 @@
+/* config.h.  Generated automatically by configure.  */
+/* config.h.in.  Generated automatically from configure.in by autoheader.  */
+
+/* Define as __inline if that's what the C compiler calls it.  */
+#define inline __inline
+
+/* Define if you have the ANSI C header files.  */
+#define STDC_HEADERS 1
+
+/* Define if printf is declared in stdio.h */
+#define PRINTF_DEFINED 1
+
+/* Define if you have the icode library (-licode).  */
+#define HAVE_LIBICODE 1
+
+/* Define if you have the vcode library (-lvcode).  */
+#define HAVE_LIBVCODE 1

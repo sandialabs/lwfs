@@ -1,0 +1,231 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+
+<!--Converted with LaTeX2HTML 2K.1beta (1.48)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Appendix 3: The Loop Device</TITLE>
+<META NAME="description" CONTENT="Appendix 3: The Loop Device">
+<META NAME="keywords" CONTENT="dwarfs-debian-guide">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META NAME="Generator" CONTENT="LaTeX2HTML v2K.1beta">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="dwarfs-debian-guide.css">
+
+<LINK REL="next" HREF="node160.html">
+<LINK REL="previous" HREF="node153.html">
+<LINK REL="up" HREF="node139.html">
+<LINK REL="next" HREF="node160.html">
+</HEAD>
+
+<BODY bgcolor="#FFFFFF">
+<!--Navigation Panel-->
+<A NAME="tex2html2818"
+  HREF="node160.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="../images/next.png"></A> 
+<A NAME="tex2html2812"
+  HREF="node139.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="../images/up.png"></A> 
+<A NAME="tex2html2806"
+  HREF="node158.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="../images/prev.png"></A> 
+<A NAME="tex2html2814"
+  HREF="node7.html">
+<IMG WIDTH="65" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="contents"
+ SRC="../images/contents.png"></A> 
+<A NAME="tex2html2816"
+  HREF="node185.html">
+<IMG WIDTH="43" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="index"
+ SRC="../images/index.png"></A> 
+<BR>
+<B> Next:</B> <A NAME="tex2html2819"
+  HREF="node160.html">Appendix 4: Multiple OS</A>
+<B> Up:</B> <A NAME="tex2html2813"
+  HREF="node139.html">Appendix</A>
+<B> Previous:</B> <A NAME="tex2html2807"
+  HREF="node158.html">emacs</A>
+ &nbsp <B>  <A NAME="tex2html2815"
+  HREF="node7.html">Contents</A></B> 
+ &nbsp <B>  <A NAME="tex2html2817"
+  HREF="node185.html">Index</A></B> 
+<BR>
+<BR>
+<!--End of Navigation Panel-->
+
+<H1><A NAME="SECTION00630000000000000000">
+Appendix 3: The Loop Device</A>
+</H1>
+<P>
+The 
+<A NAME="3925"></A><B>loop device</B> is a device driver that allows an <B>image file</B> to be 
+mounted as though it were a normal block device. The question that immediately 
+jumps to mind is, "So, how do I use this beast?". As an example, let's look at 
+mounting, and examining the contents of, the rescue floppy image file.
+
+<P>
+First the CD-ROM, or other device containing this 
+<A NAME="3928"></A><B>image file</B> needs to 
+be mounted like:
+
+<P>
+<TT>mount -r -t iso9660 /dev/scd0 /cdrom</TT>
+
+<P>
+<B>Note:</B> The <B>-r</B> option declares the device to be read only. 
+Also <I>/dev/scd0</I> assumes the drive is the first SCSI device. If the 
+machine uses a SoundBlaster Pro/Creative Labs combo for the cdrom this 
+device would be <I>/dev/sbpcd0</I> instead. The other possibilities depend on 
+the particular interface being used.
+
+<P>
+If this is an "Official CD" that was mounted, the file of interest is 
+found as:
+
+<P>
+<TT>/cdrom/debian/hamm/main/disks-i386/current/resc1440.bin</TT>
+
+<P>
+So the mount command using the <B>loop device</B> will look like:
+
+<P>
+<TT>mount -t msdos -o loop /../../resc1440.bin /mnt</TT>
+
+<P>
+After this an <I>ls</I> of <I>/mnt</I> will show all the files that will 
+appear on the floppy disk when this image file is transferred to it. This 
+is a "live" file system. That is, it can be modified just like any other 
+read/write file system mounted as a block device. The changes made to the 
+file system while mounted become part of the image file and will be reflected 
+on the floppy constructed from that image. Of course, in our example the 
+<B>file image</B> resides on a read-only medium so changes aren't possible, 
+but when the image file resides on a writable medium, like the hard disk, 
+then those kinds of changes become possible.
+
+<P>
+OK. We can mount such file systems, but how are they constructed in the 
+first place? This, of course requires a *nix environment. The tools are 
+<B>dd</B> and 
+<A NAME="3942"></A><B>losetup</B>, and the process goes something like this:
+
+<P>
+First it is necessary to create an empty file of the desired size. This is 
+done with 
+<A NAME="3944"></A><B>dd</B> and the <B>zero device</B> in a command like:
+
+<P>
+<TT>dd if=/dev/zero of=/../image.file bs=1k count=100000</TT>
+
+<P>
+This will create a file with 100 MB of space. Note that the file size is 
+equivalent to the partition size when creating partitions on a block device 
+like the hard disk. This file will thus hold a file system that can reach 
+100 MB in size before "device full" errors occur.
+
+<P>
+Before a file system can be created on this 
+<A NAME="3948"></A><B>image file</B> and mounted, it 
+needs to be made to look like a block device. This is done with the 
+<B>losetup</B> program in the following fashion:
+
+<P>
+<TT>losetup /dev/loop0 /../image.file</TT>
+
+<P>
+There are 8 loop devices to choose from, so you may need to check to see if 
+a particular device is already in use. <I>losetup /dev/loopN</I>, where 
+<B>N</B> ranges between 0 and 7, will return the status of the Nth 
+<B>loop device</B> if it is mounted and will return an error message if it 
+is not.
+
+<P>
+Now that <I>/dev/loop0</I> is a legitimate block device, 
+<B>mke2fs</B> (or any of the other file system creation utilities) can be 
+used to create a file system on the looped 
+<A NAME="3957"></A><B>image file</B> with a command 
+like:
+
+<P>
+<TT>mke2fs -c /dev/loop() 100000</TT>
+
+<P>
+The <B>-c</B> option checks the device for bad blocks and the value on the 
+end specifies how many blocks are on the file system. These two options can 
+be left off the command line and results will be seen faster, but there is 
+no guarantee that the resultant file system will be useful. Take the time to 
+check for bad blocks. It is time you will not spend looking for the cause of 
+problems later.  Once the file system has been created, and a <B>loop device</B> 
+associated with file, it can be mounted using the following command line:
+
+<P>
+<TT>mount -t ext2 /dev/loop0 /mnt</TT>
+
+<P>
+When this is later unmounted make sure to release the device with the 
+command <I>losetup -d /dev/loop1</I>. Another alternative is to release 
+the <B>loop device</B> as soon as the file system creation is complete, and 
+mount the file as in the previous example with a command like:
+
+<P>
+<TT>mount -t ext2 -o loop=/../image.file /mnt</TT>
+
+<P>
+In either case this produces a "file system" mounted on <I>/mnt</I> that has 
+100  MB of storage space. Whatever this file system is intended to contain  
+can now be copied, or untarred, or otherwise created on the new file system.
+
+<P>
+It should be evident that <B>loop devices</B> are very useful critters. 
+<A NAME="3968"></A>The installation software makes use of one to perform several sets in the 
+installation by mounting image files from the CD, instead of requiring a 
+floppy disk to mount. This is not only faster, but physically easier than 
+the floppy installation method.
+
+<HR>
+<!--Navigation Panel-->
+<A NAME="tex2html2818"
+  HREF="node160.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="../images/next.png"></A> 
+<A NAME="tex2html2812"
+  HREF="node139.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="../images/up.png"></A> 
+<A NAME="tex2html2806"
+  HREF="node158.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="../images/prev.png"></A> 
+<A NAME="tex2html2814"
+  HREF="node7.html">
+<IMG WIDTH="65" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="contents"
+ SRC="../images/contents.png"></A> 
+<A NAME="tex2html2816"
+  HREF="node185.html">
+<IMG WIDTH="43" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="index"
+ SRC="../images/index.png"></A> 
+<BR>
+<B> Next:</B> <A NAME="tex2html2819"
+  HREF="node160.html">Appendix 4: Multiple OS</A>
+<B> Up:</B> <A NAME="tex2html2813"
+  HREF="node139.html">Appendix</A>
+<B> Previous:</B> <A NAME="tex2html2807"
+  HREF="node158.html">emacs</A>
+ &nbsp <B>  <A NAME="tex2html2815"
+  HREF="node7.html">Contents</A></B> 
+ &nbsp <B>  <A NAME="tex2html2817"
+  HREF="node185.html">Index</A></B> 
+<!--End of Navigation Panel-->
+<ADDRESS>
+Dale Scheetz
+</ADDRESS>
+</BODY>
+</HTML>

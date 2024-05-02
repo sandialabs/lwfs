@@ -1,0 +1,11 @@
+K 10
+svn:ignore
+V 53
+Makefile
+Makefile.in
+.deps
+.libs
+ss_args.c
+ss_args.h
+
+END

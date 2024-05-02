@@ -1,0 +1,13 @@
+K 10
+svn:ignore
+V 72
+xdr_types.c
+xdr_types.h
+*.lo
+*.la
+Makefile
+Makefile.in
+.deps
+lwfs_int.h
+
+END

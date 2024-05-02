@@ -1,0 +1,32 @@
+
+INCLUDES = $(all_includes) $(CPPFLAGS)
+METASOURCES = AUTO
+
+AM_CFLAGS = $(SERVER_CFLAGS)
+
+
+if HAVE_BDB
+
+noinst_PROGRAMS =  example example2
+example_SOURCES = example.c
+example_CPPFLAGS = $(BDB_CPPFLAGS) $(CPPFLAGS)
+example_LDFLAGS = $(BDB_LDFLAGS)
+example_LDADD = $(BDB_LIBS)
+
+example2_SOURCES = example2.c
+example2_CPPFLAGS = $(BDB_CPPFLAGS)
+example2_LDFLAGS = $(BDB_LDFLAGS)
+example2_LDADD = $(BDB_LIBS)
+
+TESTS = example2.test
+
+example2.test: example2 Makefile.am
+	@echo "#!/bin/sh" > $@
+	@echo "$* >& $@.out" >> $@
+	@chmod +x $@
+
+
+
+endif
+
+CLEANFILES = access.db $(TESTS) *.out

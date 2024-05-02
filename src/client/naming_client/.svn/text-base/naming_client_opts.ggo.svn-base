@@ -1,0 +1,2 @@
+option "naming-pid"   - "PID of the naming server" long default="126" optional
+option "naming-nid"   - "NID of the naming server" long default="0" optional

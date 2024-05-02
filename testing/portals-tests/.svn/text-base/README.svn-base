@@ -1,0 +1,28 @@
+Test the portals PUT and GET calls.  
+
+Executables:
+  - hello_world     Transfers "Hello World!" from client to server
+  - get_bw_utcp     Bandwidth tests for the get operation
+  - put_bw_utcp     Bandwidth tests for the put operation
+  - get_pp_utcp     Ping-pong latency tests for the get operation
+  - put_pp_utcp     Ping-pong latency tests for the put operation
+  - ringtest        Sends a message around in a ring
+
+The easiest way to run these tests is to open one window for each
+process and use the portals3 runtime library to assign each process
+a separate portals process id.  For example, if you want to run the 
+client and server portions of the "get_bw_utcp" test on the same host, 
+execute the following:
+
+--- Process 0 ---
+% export PTL_IFACE=lo; 
+% export PTL_MY_RID=0; 
+% export PTL_NIDMAP=`utcp_nid lo:`utcp_nid lo`; 
+% export PTL_PIDMAP=98:99;
+
+--- Process 0 ---
+% export PTL_IFACE=lo; 
+% export PTL_MY_RID=0; 
+% export PTL_NIDMAP=`utcp_nid lo:`utcp_nid lo`; 
+% export PTL_PIDMAP=98:99;
+

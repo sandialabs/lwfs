@@ -1,0 +1,10 @@
+Contents of the "auth_svc" directory:
+
+- Source Files: 
+   - auth_args.x    (XDR type definitions for the method argument structures)
+   - auth_clnt.h    (prototypes for the client-side methods)
+   - auth_clnt.c    (implementation of the client-side methods)
+   - auth_srvr.h    (prototypes for the server-side methods)
+   - auth_srvr.c    (implementation of the server-side methods)
+   - auth_db.h      (prototypes for the authorization database methods)
+   - auth_db.c      (implementation of the database methods)

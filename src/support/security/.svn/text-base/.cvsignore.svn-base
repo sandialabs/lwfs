@@ -1,0 +1,6 @@
+security.lo
+security_test
+security_xdr.c
+security_xdr.h
+security_xdr.lo
+libsecurity.la

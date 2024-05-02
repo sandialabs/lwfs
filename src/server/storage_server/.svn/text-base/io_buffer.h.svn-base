@@ -1,0 +1,36 @@
+/**  
+ *   @file io_buffer.h
+ * 
+ *   @brief Prototypes and structure definitions for the stack data structure. 
+ *
+ *   @author Ron Oldfield (raoldfi\@sandia.gov)
+ *   $Revision$
+ *   $Date$
+ */
+
+#ifndef _IO_BUFFER_H_
+#define _IO_BUFFER_H_
+
+#include "buffer_stack.h"
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+	struct io_buffer {
+		void *buf;
+		ssize_t len; 
+	};
+
+#if defined(__STDC__) || defined(__cplusplus)
+
+#else 
+
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

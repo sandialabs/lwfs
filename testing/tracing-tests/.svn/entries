@@ -1,0 +1,53 @@
+8
+
+dir
+1573
+svn+ssh://raoldfi@software.sandia.gov/home/raoldfi/repos/lwfs/trunk/testing/tracing-tests
+svn+ssh://raoldfi@software.sandia.gov/home/raoldfi/repos/lwfs
+
+
+
+2007-08-08T16:59:33.023049Z
+1519
+raoldfi
+has-props
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+385ae4e5-3006-0410-94d9-fca899295522
+
+Makefile.am
+file
+
+
+
+
+2007-05-10T21:01:41.000000Z
+ec412c44cd109ba7f92e9152a779c359
+2007-08-08T16:59:33.023049Z
+1519
+raoldfi
+
+trace_ex1.c
+file
+
+
+
+
+2007-05-10T21:10:04.000000Z
+1abeffbe198fa9797c980cc3b1f4ef8e
+2007-08-08T16:59:33.023049Z
+1519
+raoldfi
+has-props
+

@@ -1,0 +1,106 @@
+# portals libraries should be included by configure
+
+INCLUDES = $(all_includes)
+
+METASOURCES = AUTO
+
+if HAVE_PORTALS
+
+# AM_CPPFLAGS = -DP3_NAL=\<p3nal\_utcp\.h\> -Wall $(PORTALS_CPPFLAGS)
+
+AM_CFLAGS = $(PORTALS_CFLAGS)
+AM_CPPFLAGS = $(PORTALS_CPPFLAGS)
+
+noinst_PROGRAMS = 
+CLEANFILES = 
+
+noinst_PROGRAMS += unlink_client
+unlink_client_SOURCES = unlink_opts.c unlink_client.c
+unlink_client_LDFLAGS = $(PORTALS_LDFLAGS)
+unlink_client_LDADD = $(PORTALS_LIBS)
+
+noinst_PROGRAMS += unlink_server
+unlink_server_SOURCES = unlink_opts.c unlink_server.c
+unlink_server_LDFLAGS = $(PORTALS_LDFLAGS)
+unlink_server_LDADD = $(PORTALS_LIBS)
+
+noinst_PROGRAMS += req_client
+req_client_SOURCES = req_opts.c req_client.c
+req_client_LDFLAGS = $(PORTALS_LDFLAGS)
+req_client_LDADD = $(PORTALS_LIBS)
+
+noinst_PROGRAMS += req_server
+req_server_SOURCES = req_opts.c req_server.c
+req_server_LDFLAGS = $(PORTALS_LDFLAGS)
+req_server_LDADD = $(PORTALS_LIBS)
+
+#noinst_PROGRAMS = put_bw_utcp
+#put_bw_utcp_SOURCES = put_bw.c
+#put_bw_utcp_LDFLAGS = $(PORTALS_LDFLAGS)
+#put_bw_utcp_LDADD = $(PORTALS_LIBS)
+
+#noinst_PROGRAMS += ringtest_utcp
+#ringtest_utcp_SOURCES = ringtest.c
+#ringtest_utcp_LDFLAGS = $(PORTALS_LDFLAGS)
+#ringtest_utcp_LDADD = $(PORTALS_LIBS)
+
+#noinst_PROGRAMS += get_bw_utcp
+#get_bw_utcp_SOURCES = get_bw.c
+#get_bw_utcp_LDFLAGS = $(PORTALS_LDFLAGS)
+#get_bw_utcp_LDADD = $(PORTALS_LIBS)
+
+#noinst_PROGRAMS += put_pp_utcp
+#put_pp_utcp_SOURCES = put_pp.c
+#put_pp_utcp_LDFLAGS = $(PORTALS_LDFLAGS)
+#put_pp_utcp_LDADD = $(PORTALS_LIBS)
+
+#noinst_PROGRAMS += getput_pp_utcp
+#getput_pp_utcp_SOURCES = getput_pp.c
+#getput_pp_utcp_LDFLAGS = $(PORTALS_LDFLAGS)
+#getput_pp_utcp_LDADD = $(PORTALS_LIBS)
+
+#noinst_PROGRAMS += hello_world
+#hello_world_SOURCES = hello_world.c
+#hello_world_LDFLAGS = $(PORTALS_LDFLAGS)
+#hello_world_LDADD = $(PORTALS_LIBS)
+
+#noinst_PROGRAMS += ping_pong
+#ping_pong_SOURCES = ping_pong.c ptl_opts.c
+#ping_pong_LDFLAGS = $(PORTALS_LDFLAGS)
+#ping_pong_LDADD = $(PORTALS_LIBS)
+
+#noinst_PROGRAMS += ping_pong_mt
+#ping_pong_mt_SOURCES = ping_pong_mt.c
+#ping_pong_mt_LDFLAGS = $(PORTALS_LDFLAGS)
+#ping_pong_mt_LDADD = $(PORTALS_LIBS)
+
+#noinst_PROGRAMS += test_eq_alloc
+#test_eq_alloc_SOURCES = test_eq_alloc.c
+#test_eq_alloc_LDFLAGS = $(PORTALS_LDFLAGS)
+#test_eq_alloc_LDADD = $(PORTALS_LIBS)
+
+
+
+if HAVE_GENGETOPT
+ptl_opts.c: ptl_opts.ggo Makefile.am
+	$(GENGETOPT) -F $* -S --set-package=$(PACKAGE) \
+	    --set-version=$(VERSION) < $*.ggo
+
+CLEANFILES += $(srcdir)/ptl_opts.c $(srcdir)/ptl_opts.h
+
+$(srcdir)/unlink_opts.c: $(srcdir)/unlink_opts.ggo Makefile.am
+	$(GENGETOPT) -F $* -S --set-package=$(PACKAGE) \
+	    --set-version=$(VERSION) < $*.ggo
+
+CLEANFILES += $(srcdir)/unlink_opts.c $(srcdir)/unlink_opts.h
+
+$(srcdir)/req_opts.c: $(srcdir)/req_opts.ggo Makefile.am
+	$(GENGETOPT) -F $* -S --set-package=$(PACKAGE) \
+	    --set-version=$(VERSION) < $*.ggo
+
+CLEANFILES += $(srcdir)/req_opts.c $(srcdir)/req_opts.h
+endif
+
+
+endif
+

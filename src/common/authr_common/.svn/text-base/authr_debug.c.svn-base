@@ -1,0 +1,15 @@
+/**  @file authr_debug.c
+ *   
+ *   @brief Set the global debug level for the authorization service.
+ *   
+ *   @author Ron Oldfield (raoldfi\@sandia.gov).
+ *   $Revision$.
+ *   $Date$.
+ *
+ */
+
+#include "authr_debug.h"
+#include "support/logger/logger.h"
+
+/* set to LOG_UNDEFINED -- log commands will use default level */
+log_level authr_debug_level = LOG_UNDEFINED; 

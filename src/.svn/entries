@@ -1,0 +1,120 @@
+8
+
+dir
+1573
+svn+ssh://raoldfi@software.sandia.gov/home/raoldfi/repos/lwfs/trunk/src
+svn+ssh://raoldfi@software.sandia.gov/home/raoldfi/repos/lwfs
+
+
+
+2007-09-13T19:16:29.941937Z
+1572
+mjbarri
+has-props
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+385ae4e5-3006-0410-94d9-fca899295522
+
+Readme.doxy
+file
+
+
+
+
+2006-06-30T02:49:09.000000Z
+9b89b3cc17e13dea6739b7c549e16481
+2006-06-30T03:32:24.763679Z
+791
+raoldfi
+has-props
+
+Readme.todo
+file
+
+
+
+
+2006-08-25T16:24:13.000000Z
+3193f612f0e9663d56f53450857ebe80
+2006-08-28T23:00:30.903462Z
+985
+raoldfi
+
+server
+dir
+
+common
+dir
+
+Makefile.am
+file
+
+
+
+
+2007-09-14T22:47:36.000000Z
+21042d80bae01a510331401049757ace
+2007-09-13T19:16:29.941937Z
+1572
+mjbarri
+has-props
+
+progs
+dir
+
+support
+dir
+
+Readme
+file
+
+
+
+
+2006-06-30T02:48:57.000000Z
+774af17005c6bf2fb0a3a8e5fa685432
+2006-06-30T03:32:24.763679Z
+791
+raoldfi
+has-props
+
+.cvsignore
+file
+
+
+
+
+2006-06-30T02:49:09.000000Z
+920bbaf859938c1d03e331f48fd83290
+2006-06-30T03:32:24.763679Z
+791
+raoldfi
+has-props
+
+.cvsrc
+file
+
+
+
+
+2006-06-30T02:49:09.000000Z
+bca299a032dd67de9c5246838c8df845
+2006-06-30T03:32:24.763679Z
+791
+raoldfi
+has-props
+
+client
+dir
+

@@ -1,0 +1,6 @@
+# configure lam by running 
+#   % lamboot -ssi boot rsh -ssi rsh_agent "ssh -x" lam_config
+#
+#  hostname
+alps
+pebble

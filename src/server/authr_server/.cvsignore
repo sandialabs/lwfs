@@ -1,0 +1,7 @@
+auth_args.c
+auth_args.h
+*.lo
+*.la
+Makefile
+Makefile.in
+.deps

@@ -1,0 +1,1388 @@
+/*-------------------------------------------------------------------------*/
+/**  @file rpc_clnt.c
+ *   
+ *   @brief  Implementation of the \ref rpc_client_api "RPC Client API". 
+ *           for the LWFS. 
+ *
+ *   @author Ron Oldfield (raoldfi\@sandia.gov)
+ *   $Revision: 1531 $
+ *   $Date: 2007-09-11 16:03:34 -0600 (Tue, 11 Sep 2007) $
+ *
+ */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <assert.h>
+
+#if STDC_HEADERS
+#include <stdlib.h>
+#include <string.h>
+#else
+#include <malloc.h>
+#endif
+
+
+#include PORTALS_HEADER
+
+#include "support/logger/logger.h"
+#include "common/types/types.h"
+#include "common/types/fprint_types.h"
+#include "common/rpc_common/rpc_xdr.h"
+#include "common/rpc_common/rpc_common.h"
+#include "common/rpc_common/lwfs_ptls.h"
+#include "common/rpc_common/ptl_wrap.h"
+#include "common/rpc_common/rpc_opcodes.h"
+#include "common/rpc_common/service_args.h"
+#include "common/config_parser/config_parser.h"
+#include "rpc_client.h"
+
+#define MIN_TIMEOUT 1000
+
+
+/**
+ *   @addtogroup rpc_ptl_impl
+ *
+ *   This section describes a portals implementation of the 
+ *   LWFS asynchrounous \ref rpc_api "RPC" mechanism. 
+ */
+
+/*--------------------------- Private methods ------------------- */
+
+static int client_init(void)
+{
+    int rc = LWFS_OK;
+    static lwfs_bool init_flag = FALSE;
+
+    if (init_flag) {
+	return rc; 
+    }
+
+    register_service_encodings();
+
+    init_flag = TRUE;
+
+    return rc; 
+}
+
+
+/**
+ * @brief Clean up portals data structures associated with 
+ * operation requests.
+ *
+ * @ingroup rpc_ptl_impl
+ *
+ * This method frees memory and data structures created in
+ * the prepare_request and prepare_result methods. 
+ * 
+ *
+ * If the arguments were too large for the short request, the
+ * process_request method allocated memory for the encoded 
+ * arguments and all portals data structures for the arguments.
+ *
+ * For results, the process_request method allocates space for 
+ * the encoded short result and portals data structures associated
+ * with the short result. 
+ */
+static int cleanup(lwfs_request *request)
+{
+    return LWFS_OK;
+}
+
+
+/**
+ * @brief Process the result of an operation request. 
+ *
+ * @ingroup rpc_ptl_impl
+ *
+ * After processing an operation request, a LWFS server 
+ * sends a short result back to the client. If the 
+ * contents of the result do not fit into the short result 
+ * the server stores the result until the client can fetch
+ * it. 
+ *
+ * This client-side method executes after the short 
+ * result arrives at the client. It decodes the 
+ * result header, possibly fetches the results from
+ * the server, and decodes the result.
+ *
+ * @param encoded_short_res @input The result buffer received from the server.
+ * @param request           @input The request data structure. 
+ */
+static int process_result(char *encoded_short_res_buf, lwfs_request *request)
+{
+
+    int rc = LWFS_OK;  /* return code */
+    int hdr_size;
+    uint32_t result_size; 
+    lwfs_result_header header; 
+    char *encoded_res_buf = NULL;
+    void *decoded_result = NULL;
+    XDR hdr_xdrs;
+    XDR res_xdrs;    
+
+    /* assign the result decoding function */
+    xdrproc_t xdr_decode_result = request->xdr_decode_result; 
+
+    log_debug(rpc_debug_level,"start");
+
+    /** set the status to processing */
+    request->status = LWFS_PROCESSING_RESULT; 
+
+    /* initialize the header */
+    memset(&header, 0, sizeof(lwfs_result_header));
+
+    /* create a memory stream for XDR decoding */ 
+    hdr_size = xdr_sizeof((xdrproc_t)&xdr_lwfs_result_header, &header);         
+    xdrmem_create(&hdr_xdrs, encoded_short_res_buf, 
+	    LWFS_SHORT_RESULT_SIZE, XDR_DECODE); 
+
+    /* decode the header */
+    log_debug(rpc_debug_level,"decoding result header...");
+    if (! xdr_lwfs_result_header(&hdr_xdrs, &header)) {
+	log_fatal(rpc_debug_level,"failed to decode the result header");
+	rc = LWFS_ERR_DECODE;
+	goto cleanup;
+    }
+
+    /* what to do if the remote code had an error */
+    if (header.rc != LWFS_OK) {
+	request->status = LWFS_REQUEST_ERROR; 
+	request->error_code = header.rc; 
+	rc = LWFS_OK;
+	goto cleanup;
+    }
+
+    /* get result size from the header */
+    result_size = header.result_addr.len; 
+
+    if (result_size > 0) {
+
+	/* decode the result */
+	log_debug(rpc_debug_level,"getting the result (size == %d)...", result_size);
+	decoded_result = request->result; 
+
+	/* extract result from header */
+	if (!header.fetch_result) {
+	    log_debug(rpc_debug_level,"decoding the result...");
+	    if (!xdr_decode_result(&hdr_xdrs, decoded_result))   {
+		log_fatal(rpc_debug_level,"failed to decode the result");
+		rc = LWFS_ERR_DECODE;
+		goto cleanup;
+	    }
+	}
+
+	/* else fetch the result from the server */
+	else {
+	    log_debug(rpc_debug_level,"fetching result (%d bytes) "
+		    "from server...", result_size);
+
+	    /* allocate space for result */
+	    encoded_res_buf = (char *)malloc(result_size);
+	    if (!encoded_res_buf)   {
+		log_fatal(rpc_debug_level, "malloc() failed!");
+		rc = LWFS_ERR_NOSPACE;
+		goto cleanup;
+	    }
+
+	    /* fetch the data from the server */
+	    rc = lwfs_ptl_get(encoded_res_buf, 
+		    result_size, 
+		    &header.result_addr); 
+	    if (rc != LWFS_OK) {
+		log_fatal(rpc_debug_level,""
+			"unable to GET result.");
+		rc = LWFS_ERR_RPC;
+		goto cleanup;
+	    }
+
+	    /* create a memory stream for XDR-decoding the result */
+	    xdrmem_create(&res_xdrs, encoded_res_buf, 
+		    result_size, XDR_DECODE); 
+
+	    log_debug(rpc_debug_level,"decoding the fetched result...");
+	    if (!xdr_decode_result(&res_xdrs, decoded_result))   {
+		log_fatal(rpc_debug_level,"failed to decode the result");
+		rc = LWFS_ERR_DECODE;
+		goto cleanup;
+	    }
+	}
+    }
+
+    request->status = LWFS_REQUEST_COMPLETE; 
+
+cleanup:
+    if (encoded_res_buf != NULL) {
+	free(encoded_res_buf); 
+    }
+
+    /* clean up portals data structures */
+    log_debug(rpc_debug_level,"clean up data structures");
+    cleanup(request); 
+
+    log_debug(rpc_debug_level,"end");
+
+    return rc;
+}
+
+
+/**
+ * @brief Initialize an RPC client and return the
+ * service provided by the server. */
+int lwfs_rpc_clnt_init(
+        const lwfs_remote_pid server_id,
+        lwfs_service *result)
+{
+    int rc = LWFS_OK; 
+
+    /* fist initialize RPC */
+    rc = lwfs_rpc_init(LWFS_RPC_PTL, LWFS_RPC_XDR); 
+    if (rc != LWFS_OK) {
+	log_error(rpc_debug_level, "could not initialize RPC"); 
+	return rc; 
+    }
+
+    /* this assumes that the client is not threaded */
+    lwfs_ptl_use_locks(FALSE);
+
+    /* ping the server */
+    return lwfs_get_service(server_id, result); 
+}
+
+/**
+ * @brief Send a ping request to the server.
+ */
+int lwfs_get_services(
+        const lwfs_remote_pid *server_id,
+        const int num_servers,
+        lwfs_service *result)
+{
+	int rc = LWFS_OK;
+	int i; 
+
+	for (i=0; i<num_servers; i++) {
+		rc = lwfs_get_service(server_id[i], &result[i]);
+		if (rc != LWFS_OK) {
+			log_error(rpc_debug_level, "could not get service %d",i);
+			return rc; 
+		}
+	}
+
+	return rc; 
+}
+
+/**
+ * @brief Send a ping request to the server.
+ */
+int lwfs_get_service(
+        const lwfs_remote_pid server_id,
+        lwfs_service *result)
+{
+	int rc = LWFS_OK; 
+	int rc2 = LWFS_OK; 
+	lwfs_service svc; 
+	lwfs_request req; 
+
+	client_init();
+
+	/* manually initialize the service */
+	memset(&svc, 0, sizeof(lwfs_service));
+	svc.rpc_encode = LWFS_RPC_XDR;
+	svc.req_addr.match_id.nid = server_id.nid;
+	svc.req_addr.match_id.pid = server_id.pid;
+	svc.req_addr.buffer_id = LWFS_REQ_PT_INDEX;
+	svc.req_addr.match_bits = 0;
+	svc.req_addr.len = sizeof(lwfs_request_header);
+
+	/* if the nid of the service is 0, set it to the local nid */
+	if (server_id.nid == 0) {
+		lwfs_remote_pid myid; 
+		lwfs_get_id(&myid);
+		svc.req_addr.match_id.nid = myid.nid;
+	}
+
+	/* call the server */
+	rc = lwfs_call_rpc(&svc, LWFS_OP_GET_SERVICE, NULL, NULL, 0, result, &req); 
+	if (rc != LWFS_OK) {
+		log_error(rpc_debug_level, "unable to call remote method: %s",
+				lwfs_err_str(rc));
+		return rc; 
+	}
+
+	/* wait for completion */
+	rc2 = lwfs_timedwait(&req, 10000, &rc);
+	if (rc2 != LWFS_OK) {
+		log_error(rpc_debug_level, "failed waiting for request %lu: %s",
+				req.id, 
+				lwfs_err_str(rc2));
+		return rc2; 
+	}
+
+	if (rc != LWFS_OK) {
+		log_error(rpc_debug_level, "remote method failed: %s",
+				lwfs_err_str(rc));
+		return rc; 
+	}
+
+	return rc; 
+}
+
+/** 
+ * @brief Load core services from an LWFS configuration file. 
+ */
+int lwfs_load_core_services(
+	const struct lwfs_config *cfg,
+	struct lwfs_core_services *svc)
+{
+    int rc = LWFS_OK; 
+
+    /* initialize the svc structure */
+    memset(svc, 0, sizeof(struct lwfs_core_services));
+
+    /* get the descriptor for the authorization service */
+    rc = lwfs_get_service(cfg->authr_id, &svc->authr_svc);
+    if (rc != LWFS_OK) {
+	log_error(config_debug_level, "failed to load authr svc: %s",
+		lwfs_err_str(rc));
+	return rc; 
+    }
+
+    /* get the descriptor for the naming service */
+    rc = lwfs_get_service(cfg->naming_id, &svc->naming_svc);
+    if (rc != LWFS_OK) {
+	log_error(config_debug_level, "failed to load authr svc: %s",
+		lwfs_err_str(rc));
+	return rc; 
+    }
+
+    svc->ss_num_servers = cfg->ss_num_servers; 
+    assert(svc->ss_num_servers > 0);
+
+    /* allocate space for the storage services */
+    svc->storage_svc = (lwfs_service *)
+	malloc(svc->ss_num_servers * sizeof(lwfs_service));
+    if (!svc->storage_svc) {
+	log_error(config_debug_level, "ran out of space allocating ss_svcs");
+	rc = LWFS_ERR_NOSPACE;
+	return rc; 
+    }
+
+    /* load the storage service descriptions */
+    rc = lwfs_get_services(cfg->ss_server_ids, 
+	    cfg->ss_num_servers, svc->storage_svc); 
+    if (rc != LWFS_OK) {
+	log_error(config_debug_level, "failed to load storage svcs: %s",
+		lwfs_err_str(rc));
+	return rc; 
+    }
+
+    return rc; 
+}
+
+void lwfs_core_services_free(
+	struct lwfs_core_services *svc)
+{
+    free(svc->storage_svc);
+}
+
+
+/* --------------- CLIENT INTERFACE --------- */
+
+/**
+ * @brief Send a kill request to the server.
+ */
+int lwfs_kill(
+        const lwfs_service *svc)
+{
+    int rc = LWFS_OK; 
+    int rc2 = LWFS_OK; 
+    lwfs_request req; 
+    int timeout = 5000;
+
+    client_init();
+
+    /* send the request */
+    rc = lwfs_call_rpc(svc, LWFS_OP_KILL_SERVICE, NULL, NULL, 0, NULL, &req); 
+    if (rc != LWFS_OK) {
+	log_error(rpc_debug_level, "unable to call remote method: %s",
+		lwfs_err_str(rc));
+	return rc; 
+    }
+
+    /* wait for completion */
+    rc2 = lwfs_timedwait(&req, timeout, &rc);
+    if (rc2 != LWFS_OK) {
+	log_error(rpc_debug_level, "failed waiting for request %lu: %s",
+		req.id, 
+		lwfs_err_str(rc2));
+
+	/* In this case, we failed waiting for the request because 
+	   the service exited before it had a chance to send 
+	   the result. */
+	/*return rc2;*/ 
+    }
+
+    if (rc != LWFS_OK) {
+	log_error(rpc_debug_level, "remote method failed: %s",
+		lwfs_err_str(rc));
+
+	/* this case is a legitimate error */
+	return rc; 
+    }
+
+    return rc; 
+}
+
+
+/**
+ * @brief Reset tracing on a server.
+ */
+int lwfs_trace_reset(
+        const lwfs_service *svc,
+	const int enable_flag,
+        const char *fname,
+	const int ftype)
+{
+    int rc = LWFS_OK; 
+    int rc2 = LWFS_OK; 
+    lwfs_request req; 
+    int timeout = 5000;
+
+    lwfs_trace_reset_args args; 
+
+    client_init();
+
+    /* initialize the args */
+    args.enable_flag = enable_flag; 
+    args.fname = (char *)fname;
+    args.ftype = ftype; 
+
+    /* send the request */
+    rc = lwfs_call_rpc(svc, LWFS_OP_TRACE_RESET, &args, NULL, 0, NULL, &req); 
+    if (rc != LWFS_OK) {
+	log_error(rpc_debug_level, "unable to call remote method: %s",
+		lwfs_err_str(rc));
+	return rc; 
+    }
+
+    /* wait for completion */
+    rc2 = lwfs_timedwait(&req, timeout, &rc);
+    if (rc2 != LWFS_OK) {
+	log_error(rpc_debug_level, "failed waiting for request %lu: %s",
+		req.id, 
+		lwfs_err_str(rc2));
+	return rc2; 
+    }
+
+    if (rc != LWFS_OK) {
+	log_error(rpc_debug_level, "remote method failed: %s",
+		lwfs_err_str(rc));
+	return rc; 
+    }
+
+    return rc; 
+}
+
+/** @brief Test a request for completion
+ *
+ * @param req the handle of the pending request.
+ * @return status of the operation.
+ */
+int lwfs_test(lwfs_request *req, int *rc) {
+    log_error(rpc_debug_level,"not supported"); 
+    return LWFS_ERR_NOTSUPP; 
+} 
+
+int lwfs_wait(lwfs_request *req, int *rc)
+{
+	return lwfs_timedwait(req, -1, rc); 
+}
+
+
+/** 
+ * @brief Wait for the server to fetch the long args.
+ *
+ */
+static int cleanup_long_args(
+	lwfs_request *req,
+	int timeout)
+{
+	int rc = LWFS_OK; 
+
+	/* If we created a portal for long arguments, we need to wait
+	 * for the server to fetch the arguments.
+	 */
+//	if ((req->status == LWFS_PROCESSING_REQUEST) && (req->args_eq_h != 0)) {
+	log_debug(rpc_debug_level, "waiting for events on eq_h=%u", req->args_eq_h);
+	if (req->args_eq_h != 0) {
+		int rc2; 
+		ptl_event_t event; 
+		lwfs_bool got_get_start = FALSE;
+		lwfs_bool got_get_end = FALSE; 
+		lwfs_bool got_unlink = FALSE; 
+		lwfs_bool done = FALSE; 
+
+		log_debug(rpc_debug_level,"waiting for long result"); 
+
+		while (!done){ 
+
+			/* wait for next event */
+			rc = lwfs_ptl_eq_timedwait(req->args_eq_h, timeout, &event); 
+			if (rc != LWFS_OK) {
+				log_error(rpc_debug_level, "failed to get event");
+				return rc; 
+			}
+
+			switch (event.type) {
+
+				case PTL_EVENT_GET_START:
+					log_debug(rpc_debug_level, "Received PTL_EVENT_GET_START");
+					got_get_start = TRUE;
+					break;
+				case PTL_EVENT_GET_END:
+					log_debug(rpc_debug_level, "Received PTL_EVENT_GET_END");
+					got_get_end = TRUE;
+					break;
+				case PTL_EVENT_UNLINK:
+					log_debug(rpc_debug_level, "Received PTL_EVENT_UNLINK");
+					got_unlink = TRUE;
+					break;
+				default:
+					log_error(rpc_debug_level, "unexpected event (%d)",
+							event.type);
+					done = TRUE;
+					rc = LWFS_ERR_RPC;
+			}
+
+			if (got_get_start && got_get_end && got_unlink) {
+				done = TRUE;
+			}
+		}
+
+		/* free the event queue */
+		log_debug(rpc_debug_level,"freeing req->args_eq_h..."); 
+		rc2 = lwfs_PtlEQFree(req->args_eq_h); 
+		if (rc2 != PTL_OK) {
+			log_error(rpc_debug_level, "unable to free EQ");
+			rc = LWFS_ERR_RPC; 
+		}
+
+		/* free the buffer for the args */
+		free(event.md.start); 
+
+		/* reset args_eq_h */
+		req->args_eq_h = 0; 
+	}
+
+	return rc; 
+}
+
+/**
+ * @brief Wait for all requests to complete. 
+ *
+ * A request is not complete unless we receive the short
+ * result. 
+ *
+ * @param req_array  @input_type  The array of pending requests.
+ * @param size       @input_type  The number of pending requests.
+ * @param timeout    @input_type  The time to wait for any one request.
+ * 
+ */
+int lwfs_waitall(
+	lwfs_request *req_array, 
+	lwfs_size size, 
+	int timeout)
+{
+	int rc = LWFS_OK;  /* return code */
+	int rc2; 
+	int i; 
+
+	/* wait for each request to complete */
+	for (i=0; i<size; i++) {
+		rc = lwfs_timedwait(&req_array[i], timeout, &rc2); 
+		if (rc != LWFS_OK) {
+			goto complete;
+		}
+	}
+
+complete: 
+
+	return rc; 
+}
+
+/**
+ * @brief Wait for any request to complete. 
+ *
+ * A request is not complete unless we receive the short
+ * result. 
+ * 
+ */
+int lwfs_waitany(
+	lwfs_request *req_array, 
+	lwfs_size size, 
+	int timeout, 
+	int *which,
+	int *remote_rc)
+{
+	int rc = LWFS_OK;  /* return code */
+	int i; 
+
+	ptl_handle_eq_t *eq_handles; 
+
+	/* initialize which */
+	*which = -1;
+
+	/* allocate handles */
+	eq_handles = (ptl_handle_eq_t *)malloc(size * sizeof(ptl_handle_eq_t));
+
+
+	/* check the request status of each request */
+	for (i=0; i<size; i++) {
+		if (req_array[i].status != LWFS_PROCESSING_REQUEST) {
+			*which = i; 
+			goto complete; 
+		}
+	}
+
+
+	/* setup the event queue array */
+	for (i=0; i<size; i++) {
+		eq_handles[i] = req_array[i].short_res_eq_h; 
+	}
+	
+//	if (timeout == -1) {
+//		log_debug(rpc_debug_level, "THIS IS DEBUG - Infinite timeout changed to %d millisec", MIN_TIMEOUT);
+//		timeout = MIN_TIMEOUT;
+//	}
+
+	/* wait for any one of the results */
+	{
+		ptl_event_t event;  /* the portals event */
+		lwfs_bool got_put_start = FALSE; 
+		lwfs_bool got_put_end = FALSE; 
+		lwfs_bool got_unlink = FALSE; 
+		lwfs_bool done = FALSE; 
+
+		log_debug(rpc_debug_level, "waiting on short result");
+		while (!done) {
+
+			/* wait for next event on the short result queue */
+			if (*which == -1) {
+				log_debug(rpc_debug_level, "using poll for short result");
+				rc = lwfs_ptl_eq_poll(eq_handles, size, timeout, &event, which); 
+			}
+			else {
+				log_debug(rpc_debug_level, "using timedwait for short result");
+				rc = lwfs_ptl_eq_timedwait(req_array[*which].short_res_eq_h, timeout, &event); 
+			}
+			if (rc != LWFS_OK) {
+				log_error(rpc_debug_level, "error waiting for event: errno=%d, %s",
+						rc, lwfs_err_str(rc));
+				goto free_req_eq;
+			}
+
+			switch (event.type) {
+				case PTL_EVENT_PUT_START:
+					log_debug(rpc_debug_level, "Received PTL_EVENT_PUT_START");
+					got_put_start = TRUE; 
+					break;
+				case PTL_EVENT_PUT_END:
+					log_debug(rpc_debug_level, "Received PTL_EVENT_PUT_END");
+					got_put_end = TRUE; 
+					break;
+				case PTL_EVENT_UNLINK:
+					log_debug(rpc_debug_level, "Received PTL_EVENT_UNLINK");
+					got_unlink = TRUE; 
+					break;
+				default:
+					log_error(rpc_debug_level, "Unexpected event");
+					return LWFS_ERR_RPC; 
+			}
+
+			if (got_put_start && got_put_end && got_unlink) {
+				done = TRUE;
+			}
+		}
+
+		log_debug(rpc_debug_level,"received short result");
+
+		/* we are now ready to process the result */
+		req_array[*which].status = LWFS_PROCESSING_RESULT; 
+		rc = process_result(event.md.start + event.offset, &req_array[*which]);  
+		if (rc != LWFS_OK) {
+			log_fatal(rpc_debug_level,"unable to process result");
+			return rc;
+		}
+
+		log_debug(rpc_debug_level,"A");
+
+		/* free the memory for the short result buffer */
+		free(event.md.start); 
+
+		log_debug(rpc_debug_level,"B");
+
+		/* Now we need to clean up the long arguments (if they were used) */
+		rc = cleanup_long_args(&req_array[*which], timeout);
+		if (rc != LWFS_OK) {
+			log_error(rpc_debug_level, "failed to cleanup long args");
+			return LWFS_ERR_RPC;
+		}
+
+
+		log_debug(rpc_debug_level,"C");
+	}
+
+free_req_eq:
+	/* release the event queue for the short result */
+	log_debug(rpc_debug_level,"freeing req_array[*which].short_res_eq_h..."); 
+	rc = lwfs_PtlEQFree(req_array[*which].short_res_eq_h); 
+	if (rc != PTL_OK) {
+		log_error(rpc_debug_level, "failed to free short result EQ");
+		return LWFS_ERR_RPC; 
+	}
+
+	/* If the request has data associated with it, the data should
+	 * be transferred by now (server would not have sent result). 
+	 * We need to unlink the MD and free the event queue.
+	 */
+	if (req_array[*which].data != NULL) {
+		/* Unlink the MD for the data */
+		log_debug(rpc_debug_level, "unlinking req_array[*which].data_md_h");
+		rc = lwfs_PtlMDUnlink(req_array[*which].data_md_h); 
+		if (rc != PTL_OK) {
+			log_error(rpc_debug_level, "failed to unlink data MD");
+			return LWFS_ERR_RPC; 
+		}
+
+		/* free the EQ for the data */
+		log_debug(rpc_debug_level, "freeing req_array[*which].data_eq_h");
+		rc = lwfs_PtlEQFree(req_array[*which].data_eq_h); 
+		if (rc != PTL_OK) {
+			log_error(rpc_debug_level, "failed to free data EQ");
+			return LWFS_ERR_RPC;
+		}
+	}
+
+	if (req_array[*which].args_eq_h != 0) {
+		log_debug(rpc_debug_level,"req_array[*which].args_eq_h == %d", req_array[*which].args_eq_h);
+	}
+
+complete:
+
+	/* at this point, the status should either be complete or error */
+	free(eq_handles);
+
+	/* check for an error in this code */
+	if (rc != LWFS_OK) {
+		return rc; 
+	}
+
+	/* check for an error */
+	if (req_array[*which].status == LWFS_REQUEST_ERROR) {
+		*remote_rc = req_array[*which].error_code; 
+		return rc; 
+	}
+
+	/* check for completion */
+	if (req_array[*which].status == LWFS_REQUEST_COMPLETE) {
+		log_debug(rpc_debug_level,"waitany finished"); 
+		*remote_rc = LWFS_OK;
+		return rc;
+	}
+
+	/* this should only execute if something went wrong */
+	log_fatal(rpc_debug_level,"invalid request status");
+	return LWFS_ERR_RPC;
+}
+
+
+
+/** 
+ * @brief Wait for a request to complete.
+ * 
+ * @param req the handle of the pending request.
+ */
+int lwfs_timedwait(lwfs_request *req, int timeout, int *remote_rc) 
+{
+	int which; 
+	return lwfs_waitany(req, 1, timeout, &which, remote_rc);
+}
+
+
+
+/**
+ * @brief Initialize portals data structures associated with an 
+ * RPC request.
+ *
+ * @ingroup rpc_ptl_impl
+ *
+ * This method checks to see if the operation arguments for a 
+ * request arguments fit into the short request buffer (along 
+ * with the request header).  If not, this method creates the necessary 
+ * portals data structures on the client that enable the server to 
+ * fetch the arguments explicitely. 
+ * 
+ */
+static int encode_args(
+	const lwfs_service *svc, 
+        void *args,
+        void *short_req_buf,
+        lwfs_size short_req_size, 
+        lwfs_request_header *header, 
+        lwfs_request *request)
+{
+
+	int rc = LWFS_OK;  /* return code */
+
+	/* xdrs for the header and the args. */
+	XDR hdr_xdrs, args_xdrs;
+
+
+	/* get the encoding functions for the request */
+	switch (svc->rpc_encode) {
+		case LWFS_RPC_XDR:
+			rc = lwfs_lookup_xdr_encoding(request->opcode, 
+					&request->xdr_encode_args, 
+					&request->xdr_encode_data, 
+					&request->xdr_decode_result);
+			if (rc != LWFS_OK) {
+				log_error(rpc_debug_level, 
+						"could not find xdr encoding functions");
+				goto cleanup; 
+			}
+			break;
+
+		default:
+			log_error(rpc_debug_level, "invalid encoding scheme");
+			goto cleanup;
+	}
+
+	/* create an xdr memory stream for the short request buffer */ 
+	xdrmem_create(&hdr_xdrs, short_req_buf, 
+			short_req_size, XDR_ENCODE); 
+
+	/* set the request ID for the header */
+	header->id = request->id; 
+
+	/* initialize the args_addr */
+	memset(&header->args_addr, 0, sizeof(lwfs_rma)); 
+
+	if (args == NULL) {
+		header->fetch_args = FALSE; 
+		header->args_addr.len = 0;
+
+		/* encode the header  */
+		log_debug(rpc_debug_level,"encoding request header");
+		if (! xdr_lwfs_request_header(&hdr_xdrs, header)) {
+			log_fatal(rpc_debug_level,"failed to encode the request header");
+			return LWFS_ERR_ENCODE;
+		}
+	}
+	else {
+		/* find out if a short request has room for the args */
+		lwfs_size args_size = xdr_sizeof(request->xdr_encode_args, args); 
+		lwfs_size hdr_size  = xdr_sizeof((xdrproc_t)&xdr_lwfs_request_header, header); 
+		lwfs_size remaining = short_req_size - hdr_size; 
+
+		log_debug(rpc_debug_level, "short_req_size=%d, "
+				"args_size = %d, hdr_size=%d",
+				short_req_size, args_size, hdr_size); 
+
+		/* stuff to do if the args fit into the request buffer */
+		if (args_size < remaining) { 
+
+			log_debug(rpc_debug_level,"putting args (len=%d) "
+					"in short request", args_size);
+			header->fetch_args = FALSE; 
+			header->args_addr.len = args_size;  // pass the size of the arguments
+
+			/* encode the header  */
+			log_debug(rpc_debug_level,"encoding request header");
+			if (! xdr_lwfs_request_header(&hdr_xdrs, header)) {
+				log_fatal(rpc_debug_level,"failed to encode the request header");
+				return LWFS_ERR_ENCODE;
+			}
+
+			/* encode the args  */
+			if (args != NULL) {
+				log_debug(rpc_debug_level,"encoding args");
+				if (! request->xdr_encode_args(&hdr_xdrs, args)) {
+					log_fatal(rpc_debug_level,"failed to encode the args");
+					return LWFS_ERR_ENCODE;
+				}
+			}
+		}
+
+		/** 
+		 *   If the arguments are too large to fit in an 
+		 *   \ref short request buffer, the client stores 
+		 *   excess arguments and waits for the server to 
+		 *   "fetch" the arguments using the \ref lwfs_ptl_get method.  
+		 */
+		else { 
+			static lwfs_size args_counter = 1;  
+			char *encoded_args_buf = NULL; 
+
+			/* portals structs */
+			ptl_handle_eq_t eq_h; 
+			ptl_md_t md; 
+			ptl_handle_md_t md_h; 
+			ptl_handle_me_t me_h; 
+			ptl_handle_ni_t ni_h; 
+			ptl_process_id_t match_id;
+			ptl_match_bits_t match_bits;
+			ptl_match_bits_t ignore_bits;
+
+			/* get the network interface */
+			lwfs_ptl_get_ni(&ni_h); 
+
+			log_debug(rpc_debug_level,"putting args (len=%d) "
+					"in long request", args_size);
+
+			/* we want the server to fetch the arguments */
+			header->fetch_args = TRUE;
+
+			log_debug(rpc_debug_level,"allocating space for args");
+			/* allocate memory for the encoded arguments. The request 
+			 * structure keeps track of the buffer so it can free 
+			 * the memory later. */
+			encoded_args_buf = (char *)malloc(args_size);
+
+			/* create an event queue */
+			/* TODO: should we share an event queue? */
+			rc = lwfs_PtlEQAlloc(ni_h, 5, PTL_EQ_HANDLER_NONE, &eq_h); 
+			if (rc != PTL_OK) {
+				log_error(rpc_debug_level, "failed to allocate eventq");
+				return LWFS_ERR_RPC;
+			}
+
+			/* We expect the data reqs to come from "dest" */
+			match_id.nid = svc->req_addr.match_id.nid; 
+			match_id.pid = svc->req_addr.match_id.pid; 
+			match_bits  = args_counter++; 
+			ignore_bits = 0; 
+
+			/* create a match entry (unlink with MD) */
+			rc = lwfs_PtlMEAttach(ni_h, LWFS_LONG_ARGS_PT_INDEX, 
+					match_id, match_bits, ignore_bits,
+					PTL_UNLINK, PTL_INS_AFTER, &me_h); 
+			if (rc != PTL_OK) {
+				log_error(rpc_debug_level, "failed to allocate match entry");
+				return LWFS_ERR_RPC;
+			}
+			log_debug(rpc_debug_level, "ME attach succeeded (me_h==%d)", me_h);
+
+			/* initialize the md */
+			memset(&md, 0, sizeof(ptl_md_t)); 
+			md.start = encoded_args_buf; 
+			md.length = args_size;
+			md.threshold = 1;  /* only expect 1 get request */
+			md.options = PTL_MD_OP_GET; 
+			md.user_ptr = NULL; 
+			md.eq_handle = eq_h; 
+			
+
+			/* attach the memory descriptor (automatically unlink) */
+			rc = lwfs_PtlMDAttach(me_h, md, PTL_UNLINK, &md_h); 
+			if (rc != PTL_OK) {
+				log_error(rpc_debug_level, "failed to attach md");
+				return LWFS_ERR_RPC; 
+			}
+			log_debug(rpc_debug_level, "MD attach succeeded (md_h==%d)", md_h);
+
+			/* initialize the lwfs_rma (sent to other processes) */
+			memset(&header->args_addr, 0, sizeof(lwfs_rma)); 
+			lwfs_get_id(&header->args_addr.match_id); 
+			header->args_addr.buffer_id = LWFS_LONG_ARGS_PT_INDEX; 
+			header->args_addr.offset = 0;
+			header->args_addr.match_bits = match_bits; 
+			header->args_addr.len = args_size; 
+
+			/* store the event queue for the long args */
+			request->args_eq_h = eq_h; 
+
+			/* create an xdr memory stream for the encoded args */
+			xdrmem_create(&args_xdrs, encoded_args_buf, 
+					args_size, XDR_ENCODE); 
+
+			/* encode the header  */
+			log_debug(rpc_debug_level,"encoding request header");
+			if (! xdr_lwfs_request_header(&hdr_xdrs, header)) {
+				log_fatal(rpc_debug_level,"failed to encode the request header");
+				return LWFS_ERR_ENCODE;
+			}
+
+			/* encode the args  */
+			if (args != NULL) {
+				log_debug(rpc_debug_level,"encoding args");
+				if (! request->xdr_encode_args(&args_xdrs, args)) {
+					log_fatal(rpc_debug_level,"failed to encode the args");
+					return LWFS_ERR_ENCODE;
+				}
+			}
+		}
+	}
+
+	/* print the header for debugging */
+	if (logging_debug(rpc_debug_level)) {
+		fprint_lwfs_request_header(logger_get_file(), "req_hdr", 
+				"DEBUG", header);
+	}
+
+cleanup:
+
+	/* done! */
+	return rc; 
+}
+
+
+/** 
+ * @brief Post a Portals memory descriptor for the result. 
+ *
+ * This function allocates Portals data structures for the 
+ * result.  The LWFS network protocols require the server 
+ * to "put" a short result header into a buffer on the client.
+ * If the actual result is short enough to fit in the result
+ * header, it is sent along with the header. Otherwise, the 
+ * client fetches the result from the server. 
+ */
+static int post_result_md(
+	const lwfs_service *svc,
+	lwfs_request_header *header,
+	char *result, 
+	lwfs_request *request)
+{	
+	int rc = LWFS_OK;
+	char *short_result_buf = NULL; 
+	static int local_count = 0; 
+
+	/* portals structs */
+	ptl_handle_eq_t eq_h; 
+	ptl_md_t md; 
+	ptl_handle_md_t md_h; 
+	ptl_handle_me_t me_h; 
+	ptl_handle_ni_t ni_h; 
+	ptl_process_id_t match_id;
+	ptl_match_bits_t match_bits;
+	ptl_match_bits_t ignore_bits;
+
+	/* increment the counter */
+	local_count++;
+
+	/* allocate memory for the result header */
+	short_result_buf = (char *)malloc(LWFS_SHORT_RESULT_SIZE);
+	
+	/* get the network interface handle from portals */
+	rc = lwfs_ptl_get_ni(&ni_h); 
+	if (rc != LWFS_OK) {
+		log_error(rpc_debug_level, "unable to get ni_h");
+		goto cleanup; 
+	}
+
+	/* create an event queue */
+	rc = lwfs_PtlEQAlloc(ni_h, 5, PTL_EQ_HANDLER_NONE, &eq_h); 
+	if (rc != PTL_OK) {
+		log_error(rpc_debug_level, "failed to allocate eventq");
+		rc = LWFS_ERR_RPC;
+		goto cleanup;
+	}
+
+
+	/* We expect the result to come from "dest" */
+	match_bits = (ptl_match_bits_t)local_count; 
+	match_id.nid = svc->req_addr.match_id.nid;
+	match_id.pid = svc->req_addr.match_id.pid;
+	ignore_bits = 0; 
+
+
+	/* create a match entry for the result (unlink after) */
+	rc = lwfs_PtlMEAttach(ni_h, LWFS_RES_PT_INDEX, 
+			match_id, match_bits, ignore_bits,
+			PTL_UNLINK, PTL_INS_AFTER, &me_h);
+
+
+	if (rc != PTL_OK) {
+		log_error(rpc_debug_level, "failed to allocate eventq");
+		rc = LWFS_ERR_RPC;
+		goto cleanup;
+	}
+
+	/* initialize the md for the result header */
+	memset(&md, 0, sizeof(ptl_md_t)); 
+	md.start = short_result_buf; 
+	md.length = LWFS_SHORT_RESULT_SIZE;
+	md.threshold = 1;    /* only expect one put request */
+	md.options = PTL_MD_OP_PUT | PTL_MD_TRUNCATE;
+	md.user_ptr = NULL; 
+	md.eq_handle = eq_h; 
+
+	/* attach the memory descriptor to the match entry 
+	 * unlink the MD after the "put" call */
+	rc = lwfs_PtlMDAttach(me_h, md, PTL_UNLINK, &md_h);
+	if (rc != PTL_OK) {
+		log_error(rpc_debug_level, "failed to attach md");
+		rc = LWFS_ERR_RPC; 
+		goto cleanup;
+	}
+
+	/* initialize the result address */ 
+	memset(&header->res_addr, 0, sizeof(lwfs_rma)); 
+	lwfs_get_id(&header->res_addr.match_id);
+	header->res_addr.buffer_id = LWFS_RES_PT_INDEX;
+	header->res_addr.offset = 0;
+	header->res_addr.match_bits = match_bits;
+	header->res_addr.len = LWFS_SHORT_RESULT_SIZE;
+
+	/* store the event queue for the short result */
+	request->short_res_eq_h = eq_h; 
+
+	log_debug(rpc_debug_level, "!!!!******** RESULT_COUNT = %d", local_count);
+	if (logging_debug(rpc_debug_level)) {
+		fprint_lwfs_rma(logger_get_file(), "short_result_addr", 
+				"DEBUG", &header->res_addr);
+	}
+
+cleanup:
+	return rc; 
+}
+
+
+static int post_data_md(
+		const lwfs_service *svc, 
+		lwfs_request_header *header, 
+		char *data, 
+		lwfs_size data_size,
+		lwfs_request *request)
+{
+	int rc = LWFS_OK;
+	static int local_count = 0; 
+
+	/* portals structs */
+	ptl_handle_eq_t eq_h; 
+	ptl_md_t md; 
+	ptl_handle_md_t md_h; 
+	ptl_handle_me_t me_h; 
+	ptl_handle_ni_t ni_h; 
+	ptl_process_id_t match_id;
+	ptl_match_bits_t match_bits;
+	ptl_match_bits_t ignore_bits;
+
+	/* increment the counter */
+	local_count++;
+
+	/* get the network interface handle from portals */
+	rc = lwfs_ptl_get_ni(&ni_h); 
+	if (rc != LWFS_OK) {
+		log_error(rpc_debug_level, "unable to get ni_h");
+		goto cleanup; 
+	}
+
+	/* zero out the data address */
+	memset(&header->data_addr, 0, sizeof(lwfs_rma));
+
+	if (data_size > 0) {
+		log_debug(rpc_debug_level, "data_size > 0, using "
+				"request->data_eq_h and "
+				"request->data_md_h"); 
+
+		/* make sure the data field is non-null */
+		if (data == NULL) {
+			log_error(rpc_debug_level, 
+					"data_size > 0, but data==NULL");
+			rc = LWFS_ERR_RPC;
+			goto cleanup;
+		}
+
+		/* create an event queue */
+		rc = lwfs_PtlEQAlloc(ni_h, 5, PTL_EQ_HANDLER_NONE, &eq_h); 
+		if (rc != PTL_OK) {
+			log_error(rpc_debug_level, "failed to allocate eventq (error_code==%d)", rc);
+			rc = LWFS_ERR_RPC;
+			goto cleanup;
+		}
+
+		/* We expect the server to access the data */
+		match_id.nid = svc->req_addr.match_id.nid; 
+		match_id.pid = svc->req_addr.match_id.pid; 
+		match_bits = (ptl_match_bits_t)local_count; 
+		ignore_bits = 0; 
+
+		/* create a match entry (unlink with MD) */
+		rc = lwfs_PtlMEAttach(ni_h, LWFS_DATA_PT_INDEX, 
+				match_id, match_bits, ignore_bits,
+				PTL_UNLINK, PTL_INS_AFTER, &me_h); 
+		if (rc != PTL_OK) {
+			log_error(rpc_debug_level, "failed to allocate match entry (error_code==%d)", rc);
+			goto cleanup;
+		}
+
+		/* initialize the md */
+		memset(&md, 0, sizeof(ptl_md_t)); 
+		md.start = data; 
+		md.length = data_size;
+		md.threshold = PTL_MD_THRESH_INF;  /* unlimited reqs */
+		md.options = PTL_MD_OP_PUT|PTL_MD_OP_GET|PTL_MD_TRUNCATE;
+		md.user_ptr = NULL; 
+		md.eq_handle = eq_h; 
+
+		/* attach the memory descriptor (manually unlink) */
+		rc = lwfs_PtlMDAttach(me_h, md, PTL_RETAIN, &md_h); 
+		if (rc != PTL_OK) {
+			log_error(rpc_debug_level, "failed to attach md (error_code==%d)", rc);
+			return LWFS_ERR_RPC; 
+		}
+
+		/* initialize the lwfs_remote_md (sent to other processes) */
+		memset(&header->data_addr, 0, sizeof(lwfs_rma));
+		lwfs_get_id(&header->data_addr.match_id); 
+		header->data_addr.buffer_id = LWFS_DATA_PT_INDEX;
+		header->data_addr.offset = 0;
+		header->data_addr.match_bits = match_bits;
+		header->data_addr.len = data_size;
+
+		/* store the event queue for the data */
+		request->data_eq_h = eq_h; 
+		request->data_md_h = md_h; 
+
+		if (logging_debug(rpc_debug_level)) {
+			fprint_lwfs_rma(logger_get_file(), "data_addr", 
+					"DEBUG", &header->data_addr);
+		}
+	}
+
+cleanup:
+	return rc; 
+}
+
+
+/** 
+ * @brief Send an RPC request to an LWFS server.
+ *
+ * @ingroup rpc_ptl_impl
+ *
+ * This method encodes and transfers an RPC request header and 
+ * operation arguments to an LWFS server using Portals. If the 
+ * arguments are sufficiently small, \b lwfs_call_rpc sends 
+ * the request header and the arguments in a single message. 
+ * If the arguments are large (i.e., too large for the request buffer), 
+ * the server to fetch the arguments from a client-side portal.
+ *
+ * @param rpc           @input descriptor for the remote method. 
+ * @param args          @input pointer to the arguments.
+ * @param data          @input pointer to data (for bulk data transfers).
+ * @param data_size     @input length of data buffer
+ * @param result        @input where to put results. 
+ * @param req           @output The request handle (used to test for 
+ *                              completion).
+ */
+int lwfs_call_rpc(
+		const lwfs_service *svc, 
+		const lwfs_opcode opcode, 
+		void *args, 
+		void *data,
+		uint32_t data_size,
+		void *result,
+		lwfs_request *request)
+{
+	/* global counter that needs mutex protection */
+	static unsigned long global_count = 0; 
+	static pthread_mutex_t rpc_mutex = PTHREAD_MUTEX_INITIALIZER; 
+
+	/* local count does not need protection */
+	static unsigned long local_count; 
+
+	/* local variables */
+	int rc;  /* return code */
+
+	lwfs_request_header header;   /* the request header */
+	char *short_req_buf = NULL;
+	int short_req_len = 0;
+
+	/* increment global counter */
+	pthread_mutex_lock(&rpc_mutex);
+	global_count++; 
+	local_count = global_count; 
+	pthread_mutex_unlock(&rpc_mutex); 
+
+	/*------ Initialize variables and buffers ------*/
+	memset(request, 0, sizeof(lwfs_request));
+	memset(&header, 0, sizeof(lwfs_request_header));
+
+	/* set request fields */
+	request->id = local_count;  /* id of the request (used for debugging) */
+	request->opcode = opcode;   /* operation ID */
+	request->result = result;   /* where to put the result */
+	request->data = (data_size > 0)? data : NULL; 
+	request->error_code = LWFS_OK;                /* return code of remote method */
+	request->status = LWFS_SENDING_REQUEST;       /* status of this request */
+
+
+
+
+	/* set the opcode for the request header */
+	header.opcode = opcode; 
+
+
+
+	/* --- Post memory descriptor for long args (if needed) ----- */
+
+
+	/* --- Post a memory descriptor for the data (if needed) --- */
+	rc = post_data_md(svc, &header, data, data_size, request);
+	if (rc != LWFS_OK) {
+		log_error(rpc_debug_level, "could not post md for data");
+		goto cleanup;
+	}
+
+
+	/* --- Post memory descriptor for the short result --- */
+	rc = post_result_md(svc, &header, result, request); 
+	if (rc != LWFS_OK) {
+		log_error(rpc_debug_level, "could not post md for result");
+		goto cleanup;
+	}
+
+
+	/* allocate memory for the short request buffer */
+	short_req_len = svc->req_addr.len; 
+	short_req_buf = (char *)malloc(short_req_len); 
+
+
+	/* --- encode the arguments (might place args in the short request) --- */
+	rc = encode_args(svc, args, short_req_buf, short_req_len, 
+			&header, request);
+	if (rc != LWFS_OK) {
+		log_fatal(rpc_debug_level,""
+				"unable to encode arguments"); 
+		goto cleanup; 
+	}
+
+	/* get the number of valid bytes in the request */
+	unsigned long len = xdr_sizeof((xdrproc_t)&xdr_lwfs_request_header, &header); 
+
+	/* if the args in the short request, add args len */
+	if (!header.fetch_args) {
+		len += header.args_addr.len;
+	}
+
+	/* send the encoded short request buffer to the server */ 
+	log_debug(rpc_debug_level,"sending short request, id=%lu, len=%d", header.id, len); 
+
+	rc = lwfs_ptl_put(short_req_buf, len, &svc->req_addr); 
+	if (rc != LWFS_OK) {
+		log_fatal(rpc_debug_level,""
+				"unable to PUT the short request"); 
+		goto cleanup; 
+	}
+	log_debug(rpc_debug_level,"message sent"); 
+
+	/* change the state of the pending request */
+	request->status = LWFS_PROCESSING_REQUEST; 
+
+cleanup:
+	free(short_req_buf); 
+
+	return rc;
+}
+

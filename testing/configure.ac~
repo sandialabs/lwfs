@@ -1,0 +1,122 @@
+dnl ----------------- LWFS tests cofig file ----------------
+dnl   This file contains the autoconf configuration script
+dnl   used to build the LWFS tests. 
+dnl ----------------------------------------------------
+
+AC_INIT(configure.ac)
+
+AC_CONFIG_HEADERS([config.h])
+AM_INIT_AUTOMAKE(lwfs-tests, 0.1)
+
+
+dnl ---------------- Command-line arguments -------------
+AC_ARG_WITH(lwfs-root,
+	[--with-lwfs-root[=DIR]],
+	[LWFS_ROOT=$withval],
+	[LWFS_ROOT=$PWD/..])
+
+AC_SUBST(LWFS_ROOT)
+
+AC_ARG_ENABLE(testing-servers,
+ 	[Enable testing of servers and clients],
+ 	[AM_CONDITIONAL(TEST_SERVERS,true)],
+	[AM_CONDITIONAL(TEST_SERVERS,false)])
+
+
+dnl  ------- this is required to allow the UINT*_C macros in C++ -----
+CXXFLAGS="${CXXFLAGS} -D__STDC_CONSTANT_MACROS"
+
+dnl  ---------------- COMPILER CHECKS  ----------------------------
+
+AC_LANG_C
+AC_PROG_CC
+AC_PROG_LIBTOOL
+
+ACX_MPI
+
+AC_CHECK_HEADER(string.h, [], [])
+AC_CHECK_HEADER(strings.h, [], [])
+
+dnl -- Check for Lee's libsysio
+AC_LIBSYSIO([], [AC_MSG_WARN("missing libsysio")])
+
+dnl -- Check for libebofs
+AC_EBOFS([], [AC_MSG_WARN("missing ebofs")])
+
+dnl -- Portals required for networking
+AC_PORTALS([], 
+	[ac_server_ok=no; ac_client_ok=no;
+	AC_MSG_WARN("missing Portals ... LWFS disabled")])
+
+dnl -- Check for gssapi
+SASL_GSSAPI_CHK([],[AC_MSG_WARN("missing gssapi")])
+
+dnl Find working version of berkeley  db
+dnl AX_PATH_BDB([4.2],
+dnl 	[AM_CONDITIONAL(HAVE_BDB,true)],
+dnl 	[AC_MSG_WARN("missing berkeley db");
+dnl 	 AM_CONDITIONAL(HAVE_BDB,false)])
+
+AX_BERKELEY_DB([4.2],
+	[AM_CONDITIONAL(HAVE_BDB,true)],
+	[AC_MSG_WARN("missing berkeley db");
+	 AM_CONDITIONAL(HAVE_BDB,false)])
+
+dnl Find working version of ssl and crypto library (defines HAVE_SSL)
+AC_OPENSSL([],
+	[AC_MSG_WARN("missing openssl ... LWFS servers disabled");
+	ac_server_ok=no])
+
+dnl -- Pablo required for tracing
+AC_PABLO([], [AC_MSG_WARN("missing Pablo ... tracing disabled")])
+
+dnl -- Check for Lee's libsysio
+AC_LIBSYSIO([], [AC_MSG_WARN("missing libsysio")])
+
+dnl -- Portals required for networking
+AC_PORTALS([], 
+	[ac_server_ok=no; ac_client_ok=no;
+	AC_MSG_WARN("missing Portals ... LWFS disabled")])
+
+dnl Find working version of gengetopt
+AC_PROG_GENGETOPT
+
+dnl -- real-time library required for asynchronous I/O library
+dnl -- (defines HAVE_RT, RT_{CPPFLAGS,CFLAGS,LDFLAGS,LIBS})
+AC_RT([], [AC_MSG_WARN("missing rtlib ... aio disabled")])
+
+dnl  ---------------- FINAL TESTS  ----------------------------
+
+
+dnl  ---------------- Generate Makefiles  ----------------------------
+
+AC_CONFIG_FILES([Makefile
+		checkpoint-tests/Makefile
+		mds-api-tests/Makefile
+		fuse-lwfs/Makefile
+		db-tests/Makefile
+		gss-api-tests/Makefile
+		portals-tests/Makefile
+		xdr-tests/Makefile
+		rpc-tests/Makefile
+		threadpool-tests/Makefile
+		rpc-tests/tcp-xfer/Makefile
+		rpc-tests/mpi-xfer/Makefile
+		rpc-tests/rpc-xfer/Makefile
+		rpc-tests/lwfs-xfer/Makefile
+		rpc-tests/portals-xfer/Makefile
+		ss-tests/Makefile
+		authr-tests/Makefile
+		naming-tests/Makefile
+		naming-tests/results/Makefile
+		tracing-tests/Makefile
+		libsysio-tests/Makefile
+		libsysio-tests/drivers/Makefile
+		libsysio-tests/drivers/lwfs/Makefile
+		libsysio-tests/drivers/incore/Makefile
+		libsysio-tests/drivers/native/Makefile
+		xchange-tests/Makefile
+		ebofs-tests/Makefile])
+
+AC_OUTPUT
+

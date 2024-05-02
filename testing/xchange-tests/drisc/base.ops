@@ -1,0 +1,594 @@
+#!perl
+
+sub upperc {
+    local($_) = pop(@_);
+    tr/[a-z]/[A-Z]/;
+    return $_;
+}
+
+&init_output;
+
+    $arith3 = 0;
+&arith3( "add sub mul div mod xor and or lsh rsh", "i u ul l");
+&arith3( "add sub", "p");
+&arith3( "add sub mul div", "f d");
+    $arith2 = 0;
+&arith2( "not com neg", "i u ul l");
+&arith2( "neg", "f d");
+    $branch = 0;
+&branch( "eq ge gt le lt ne", "i u ul l p d f");
+    $convert = 0;
+&convert( "c d f i l s u ul us uc", "i u ul l");
+&convert( "d f i l u ul", "f d");
+&convert( "i l u ul", "c s");
+&convert( "p ul", "ul p");
+&loadstore("c d f i l p s u uc u ul us");
+&ret("c uc s us i u l ul p d f");
+&mov("c uc s us i u l ul p d f");
+&set("c uc s us i u l ul p d f");
+&push("i u l ul p f d");
+&call("i u l ul p f d v");
+&save_restore("i u l ul p d f");
+
+print HOUT "#define dr_jmp_a3_size $arith3\n";
+print HOUT "#define dr_jmp_a2_size $arith2\n";
+print HOUT "#define dr_jmp_branch_size $branch\n";
+print HOUT "#define dr_jmp_convert_size $convert\n";
+
+print HOUT "#define dr_jv(c, label) (c->j->jv)(c, (unsigned long) label)\n";
+print HOUT "#define dr_jp(c, dest_reg) (c->j->jp)(c, (unsigned long) dest_reg)\n";
+print HOUT "#define dr_jpi(c, dest_imm) (c->j->jpi)(c, (unsigned long) dest_imm)\n";
+print HOUT "#define dr_jalp(c, return_addr_reg, target) (c->j->jal)(c, return_addr_reg, target)\n";
+
+print HOUT "#define dr_special(c, type, param) if (c->j->special) (c->j->special)(c, type, param)\n";
+print HOUT "#endif /* __DRISC_H__ */\n";
+
+print COUT "\nchar *arith3_name[] = \{".substr($enum_a3,2). "\};\n";
+print COUT "\nchar *arith2_name[] = \{".substr($enum_a2,2). "\};\n";
+print COUT <<EOF;
+char *drisc_type_names[] = {
+    "c",    /* char */
+    "uc",   /* unsigned char */
+    "s",    /* short */
+    "us",   /* unsigned short */
+    "i",    /* int */
+    "u",    /* unsigned */
+    "l",    /* long */
+    "ul",   /* unsigned long */
+    "p",    /* pointer */
+    "f",    /* floating */
+    "d",    /* double */
+    "v",    /* void */
+    "b",    /* block structure */
+};
+EOF
+
+sub loadstore {
+    local ($types) = @_;
+    foreach (split(' ', $types)) {
+	print VHOUT "#define dr_ld${_}(c, dest, src1, src2) v_ld${_}(dest, src1, src2)\n";
+	print VHOUT "#define dr_ld${_}i(c, dest, src1, imm) v_ld${_}i(dest, src1, imm)\n";
+	print IHOUT "#define dr_ld${_}(c, dest, src1, src2) i_ld${_}(dest, src1, src2)\n";
+	print IHOUT "#define dr_ld${_}i(c, dest, src1, imm) i_ld${_}i(dest, src1, imm)\n";
+	print HOUT "#define dr_ld${_}(c, dest, src1, src2) (c->j->load)(c, DR_" . &upperc($_) . ", 0, dest, src1, src2)\n";
+	print HOUT "#define dr_ld${_}i(c, dest, src, imm) (c->j->loadi)(c, DR_" . &upperc($_) . ", 0, dest, src, imm)\n";
+	print VHOUT "#define dr_st${_}(c, dest, src1, src2) v_st${_}(dest, src1, src2)\n";
+	print VHOUT "#define dr_st${_}i(c, dest, src1, imm) v_st${_}i(dest, src1, imm)\n";
+	print IHOUT "#define dr_st${_}(c, dest, src1, src2) i_st${_}(dest, src1, src2)\n";
+	print IHOUT "#define dr_st${_}i(c, dest, src1, imm) i_st${_}i(dest, src1, imm)\n";
+	print HOUT "#define dr_st${_}(c, dest, src1, src2) (c->j->store)(c, DR_" . &upperc($_) . ", 0, dest, src1, src2)\n";
+	print HOUT "#define dr_st${_}i(c, dest, src, imm) (c->j->storei)(c, DR_" . &upperc($_) . ", 0, dest, src, imm)\n";
+	print VHOUT "#define dr_has_ldbs(c) 1\n";
+	print VHOUT "#define dr_ldbs${_}(c, dest, src1, src2) v_ldbs${_}(dest, src1, src2)\n";
+	print VHOUT "#define dr_ldbs${_}i(c, dest, src1, imm) v_ldbs${_}i(dest, src1, imm)\n";
+	print IHOUT "#define dr_has_ldbs(c) 1\n";
+	print IHOUT "#define dr_ldbs${_}(c, dest, src1, src2) i_ldbs${_}(dest, src1, src2)\n";
+	print IHOUT "#define dr_ldbs${_}i(c, dest, src1, imm) i_ldbs${_}i(dest, src1, imm)\n";
+	print HOUT "#define dr_has_ldbs(c) (c->j->bsload != 0)\n";
+	print HOUT "#define dr_ldbs${_}(c, dest, src1, src2) (c->j->bsload)(c, DR_" . &upperc($_) . ", 0, dest, src1, src2)\n";
+	print HOUT "#define dr_ldbs${_}i(c, dest, src, imm) (c->j->bsloadi)(c, DR_" . &upperc($_) . ", 0, dest, src, imm)\n";
+	print HOUT "#define dr_lea(c, dest, src, imm) (c->j->lea)(c, 0, 0, dest, src, imm)\n";
+    }
+}
+
+sub arith3 {
+    local($ops, $types) = @_;
+    foreach (split(' ', $ops)) {
+	$op = $_;
+	foreach (split(' ', $types)) {
+	    print HOUT "#define dr_jmp_${op}${_} $arith3\n";
+	    $enum_a3 = $enum_a3 . ", \"${op}${_}\"";
+	    $arith3 = $arith3 + 1;
+	}
+    }
+    foreach (split(' ', $ops)) {
+	$op = $_;
+	foreach (split(' ', $types)) {
+	    print VHOUT "#define dr_$op${_}(c, dest, src1, src2) v_$op${_}(dest, src1, src2)\n";
+	    print VHOUT "#define dr_${op}${_}i(c, dest, src1, imm) v_$op${_}i(dest, src1, imm)\n";
+	    print IHOUT "#define dr_$op${_}(c, dest, src1, src2) i_$op${_}(dest, src1, src2)\n";
+	    print IHOUT "#define dr_${op}${_}i(c, dest, src1, imm) i_$op${_}i(dest, src1, imm)\n";
+	    print HOUT "#define dr_$op${_}(c, dest, src1, src2) (c->j->jmp_a3)[dr_jmp_${op}${_}](c, c->j->a3_data[dr_jmp_${op}${_}].data1, c->j->a3_data[dr_jmp_${op}${_}].data2, dest, src1, src2)\n";
+	    if (($_ eq 'f') || ($_ eq 'd')) {
+		print HOUT "#define dr_$op${_}i(c, dest, src1, imm) (c->j->jmp_f3i)[dr_jmp_${op}${_}](c, c->j->a3f_data[dr_jmp_${op}${_}].data1, c->j->a3f_data[dr_jmp_${op}${_}].data2, dest, src1, imm)\n";
+	    } else {
+		print HOUT "#define dr_$op${_}i(c, dest, src1, imm) (c->j->jmp_a3i)[dr_jmp_${op}${_}](c, c->j->a3i_data[dr_jmp_${op}${_}].data1, c->j->a3i_data[dr_jmp_${op}${_}].data2, dest, src1, imm)\n";
+	    }
+	}
+    }
+}
+
+sub arith2 {
+    local($ops, $types) = @_;
+    foreach (split(' ', $ops)) {
+	$op = $_;
+	foreach (split(' ', $types)) {
+	    print HOUT "#define dr_jmp_${op}${_} $arith2\n";
+	    $enum_a2 = $enum_a2 . ", \"${op}${_}\"";
+	    $arith2 = $arith2 + 1;
+	}
+    }
+    foreach (split(' ', $ops)) {
+	$op = $_;
+	foreach (split(' ', $types)) {
+	    print VHOUT "#define dr_$op${_}(c, dest, src) v_$op${_}(dest, src)\n";
+	    print VHOUT "#define dr_${op}${_}i(c, dest, imm) v_$op${_}i(dest, imm)\n";
+	    print IHOUT "#define dr_$op${_}(c, dest, src) i_$op${_}(dest, src)\n";
+	    print IHOUT "#define dr_${op}${_}i(c, dest, imm) i_$op${_}i(dest, imm)\n";
+	    print HOUT "#define dr_$op${_}(c, dest, src) (c->j->jmp_a2)[dr_jmp_${op}${_}](c, c->j->a2_data[dr_jmp_${op}${_}].data1, c->j->a2_data[dr_jmp_${op}${_}].data2, dest, src)\n";
+	    if (($_ eq 'f') || ($_ eq 'd')) {
+		print HOUT "#define dr_$op${_}i(c, dest, imm) (c->j->jmp_f2i)[dr_jmp_${op}${_}](c, c->j->a2f_data[dr_jmp_${op}${_}].data1, c->j->a2f_data[dr_jmp_${op}${_}].data2, dest, imm)\n";
+	    } else {
+		print HOUT "#define dr_$op${_}i(c, dest, imm) (c->j->jmp_a2i)[dr_jmp_${op}${_}](c, c->j->a2_data[dr_jmp_${op}${_}].data1, c->j->a2_data[dr_jmp_${op}${_}].data2, dest, imm)\n";
+	    }
+	}
+    }
+}
+
+sub branch {
+    local($ops, $types) = @_;
+    $brcode = 0;
+    foreach (split(' ', $ops)) {
+	print HOUT "#define dr_b${_}_code " . $brcode++ . "\n";
+    }
+    print COUT "char *branch_op_names[] = {";
+    foreach (split(' ', $ops)) {
+	$op = $_;
+	foreach (split(' ', $types)) {
+	    print HOUT "#define dr_jmp_b${op}${_} $branch\n";
+	    print COUT "\"${op}${_}\", ";
+	    $branch = $branch + 1;
+	}
+    }
+    print COUT "0};\n";
+    foreach (split(' ', $ops)) {
+	$op = $_;
+	foreach (split(' ', $types)) {
+	    print VHOUT "#define dr_b$op${_}(c, src1, src2, label) v_b$op${_}(src1, src2, label)\n";
+	    print VHOUT "#define dr_b${op}${_}i(c, src, imm, label) v_b$op${_}i(src, imm, label)\n";
+	    print IHOUT "#define dr_b$op${_}(c, src1, src2, label) i_b$op${_}(src1, src2, label)\n";
+	    print IHOUT "#define dr_b${op}${_}i(c, src, imm, label) i_b$op${_}i(src, imm, label)\n";
+	    print HOUT "#define dr_b$op${_}(c, src1, src2, label) (c->j->jmp_b)[dr_jmp_b${op}${_}](c, c->j->b_data[dr_jmp_b${op}${_}].data1, c->j->b_data[dr_jmp_b${op}${_}].data2, src1, src2, label)\n";
+	    if (($_ eq 'f') || ($_ eq 'd')) {
+		#% no immediate form 
+	    } else {
+		print HOUT "#define dr_b$op${_}i(c, src, imm, label) (c->j->jmp_bi)[dr_jmp_b${op}${_}](c, c->j->b_data[dr_jmp_b${op}${_}].data1, c->j->b_data[dr_jmp_b${op}${_}].data2, src, imm, label)\n";
+	    }
+	}
+    }
+}
+
+sub convert {
+    local($from_types, $to_types) = @_;
+    foreach (split(' ', $from_types)) {
+	$from = $_;
+	foreach (split(' ', $to_types)) {
+	    if (${from} eq ${_}) { 
+	        next;
+	    } 
+	    print VHOUT "#define dr_cv${from}2${_}(c, dest, src) v_cv${from}2${_}(dest, src)\n";
+	    print VHOUT "#define dr_cv${from}2${_}i(c, src, imm) v_cv${from}2${_}i(src, imm)\n";
+	    print IHOUT "#define dr_cv${from}2${_}(c, dest, src) i_cv${from}2${_}(dest, src)\n";
+	    print IHOUT "#define dr_cv${from}2${_}i(c, src, imm) i_cv${from}2${_}i(src, imm)\n";
+	    print HOUT "#define dr_cv${from}2${_}(c, dest, src) (c->j->convert)(c, DR_" . &upperc(${from}) . ", DR_" . &upperc($_) . ", dest, src)\n";
+	}
+    }
+}
+
+sub ret {
+    local($types) = @_;
+    foreach (split(' ', $types)) {
+	$type = $_;
+	$dr_type = $_;
+	if (($type eq 'c') || ($type eq 'uc') || ($type eq 's') || 
+	    ($type eq 'us')) { $dr_type = "i";}
+	print VHOUT "#define dr_ret${type}(c, src) v_ret${type}(src)\n";
+	print VHOUT "#define dr_ret${type}i(c, imm) v_ret${type}i(imm)\n";
+	print IHOUT "#define dr_ret${type}(c, src) i_ret${type}(src)\n";
+	print IHOUT "#define dr_ret${type}i(c, imm) i_ret${type}i(imm)\n";
+	print HOUT "#define dr_ret${type}(c, src) (c->j->ret)(c, DR_" . &upperc($dr_type) . ", 0, src)\n";
+	if ($_ eq 'p') {
+	    print HOUT "#define dr_ret${type}i(c, imm) (c->j->reti)(c, DR_" . &upperc($type) . ", 0, (unsigned long) imm)\n";
+	} elsif (($_ eq 'f') || ($_ eq 'd')) {
+	    print HOUT "#define dr_ret${type}i(c, imm) (c->j->retf)(c, DR_" . &upperc($type) . ", 0, imm)\n";
+	} else {
+	    print HOUT "#define dr_ret${type}i(c, imm) (c->j->reti)(c, DR_" . &upperc($type) . ", 0, imm)\n";
+	}
+
+    }
+    print HOUT "#define dr_pret(c, type, src) (c->j->ret)(c, type, 0, src)\n";
+}
+
+sub mov {
+    local($types) = @_;
+    foreach (split(' ', $types)) {
+	$type = $_;
+	print VHOUT "#define dr_mov${type}(c, dest, src) v_mov${type}(dest, src)\n";
+	print IHOUT "#define dr_mov${type}(c, dest, src) i_mov${type}(dest, src)\n";
+	print HOUT "#define dr_mov${type}(c, dest, src) (c->j->mov)(c, DR_" . &upperc($type) . ", 0, dest, src)\n";
+    }
+    print HOUT "#define dr_pmov(c, type, dest, src) (c->j->mov)(c, type, 0, dest, src)\n";
+}
+
+sub set {
+    local($types) = @_;
+    foreach (split(' ', $types)) {
+	$type = $_;
+	print VHOUT "#define dr_set${type}(c, dest, imm) v_set${type}(dest, imm)\n";
+	print IHOUT "#define dr_set${type}(c, dest, imm) i_set${type}(dest, imm)\n";
+	if (($_ eq 'f') || ($_ eq 'd')) {
+	    print HOUT "#define dr_set${type}(c, dest, imm) (c->j->setf)(c, DR_" . &upperc($type) . ", 0, dest, imm)\n";
+	} else {
+	    print HOUT "#define dr_set${type}(c, dest, imm) (c->j->set)(c, DR_" . &upperc($type) . ", 0, dest, imm)\n";
+	}
+    }
+    print HOUT "#define dr_piset(c, type, dest, imm) (c->j->set)(c, type, 0, dest, imm)\n";
+}
+
+sub push {
+    local($types) = @_;
+    print HOUT "#define dr_push_arg(c, type, reg) (c->j->push)(c, type, reg)\n";
+    print HOUT "#define dr_push_init(c) (c->j->push)(c, DR_V, -1)\n";
+    foreach (split(' ', $types)) {
+	$type = $_;
+	print VHOUT "#define dr_push_arg${type}i(c, imm) v_push_arg${type}i(imm)\n";
+	print VHOUT "#define dr_push_arg${type}(c, reg) v_push_arg${type}(reg)\n";
+	print IHOUT "#define dr_push_arg${type}i(c, imm) i_arg${type}i(imm)\n";
+	print IHOUT "#define dr_push_arg${type}(c, reg) i_arg${type}(reg)\n";
+	print HOUT "#define dr_push_arg${type}(c, reg) (c->j->push)(c, DR_" . &upperc($type) . ", reg)\n";
+	if (($_ eq 'f') || ($_ eq 'd')) {
+	    print HOUT "#define dr_push_arg${type}i(c, imm) (c->j->pushfi)(c, DR_" . &upperc($type) . ", imm)\n";
+	} elsif ($_ eq 'p') {
+	    print HOUT "#define dr_push_arg${type}i(c, imm) (c->j->pushi)(c, DR_" . &upperc($type) . ", (long) imm)\n";
+	} else {
+	    print HOUT "#define dr_push_arg${type}i(c, imm) (c->j->pushi)(c, DR_" . &upperc($type) . ", imm)\n";
+	}
+    }
+}
+
+sub call {
+    local($types) = @_;
+    foreach (split(' ', $types)) {
+	$type = $_;
+	if ($type eq 'v') {
+	    print HOUT "extern void dr_scall${type}(drisc_ctx c, void *ptr, char *arg_str, ...);\n";
+	} else {
+	    print HOUT "extern int dr_scall${type}(drisc_ctx c, void *ptr, char *arg_str, ...);\n";
+	}
+	print HOUT "#define dr_call${type}(c, ptr) c->j->calli(c, DR_" . &upperc($type) . " , ptr)\n";
+	print HOUT "#define dr_callr${type}(c, src) c->j->callr(c, DR_" . &upperc($type) . " , src)\n";
+	print VHOUT "#define dr_call${type}(c, ptr) v_ccall${type}(ptr)\n";
+	print IHOUT "#define dr_call${type}(c, ptr) i_call${type}i(ptr)\n";
+    }
+    print HOUT "#define dr_pcall(c, type, ptr) c->j->calli(c, type, ptr)\n";
+    print HOUT "#define dr_pcallr(c, type, src) c->j->callr(c, type, src)\n";
+}
+
+sub save_restore {
+    local($types) = @_;
+    foreach (split(' ', $types)) {
+	$type = $_;
+	print HOUT "#define dr_save${type}(c, reg) c->j->save_restore(c, 0, DR_" . &upperc($_) . ", reg)\n";
+	print HOUT "#define dr_restore${type}(c, reg) c->j->save_restore(c, 1, DR_" . &upperc($_) . ", reg)\n";
+	print VHOUT "#define dr_save${type}(c, reg) v_save${type}(reg)\n";
+	print VHOUT "#define dr_restore${type}(c, reg) v_restore${type}(reg)\n";
+	
+    }
+}
+
+sub init_output {
+    open(HOUT, '>drisc.h') || die "Can't open header output";
+    open(COUT, '>drisc.c') || die "Can't open C output";
+    open(VHOUT, '>drisc_vcode.h') || die "Can't open header output";
+    open(IHOUT, '>drisc_icode.h') || die "Can't open header output";
+
+print HOUT<<EOF;
+#ifndef __DRISC_H__
+#define __DRISC_H__
+
+/* This file is generated from base.ops.  Do not edit directly. */
+
+struct drisc_private_ctx;
+
+typedef struct drisc_private_ctx *private_ctx;
+
+struct jmp_table_s;
+
+typedef struct jmp_table_s *jmp_table;
+
+typedef struct drisc_ctx_s {
+    jmp_table j;
+    private_ctx p;
+    int dr_local_pointer;
+    int dr_param_pointer;
+    int drisc_debug;
+}*drisc_ctx;
+
+struct dec;
+
+typedef struct dec *drisc_exec_ctx;
+
+typedef int dr_reg_t;
+
+typedef enum {DR_NOP = 0, DR_SEGMENTED_FOLLOWS} special_operations;
+typedef enum {DR_X86_CS_PREFIX = 0, DR_X86_SS_PREFIX,
+              DR_X86_DS_PREFIX, DR_X86_ES_PREFIX,
+              DR_X86_FS_PREFIX, DR_X86_GS_PREFIX} segment_prefix;
+
+typedef void (*drisc_mach_init_routine)(drisc_ctx c);
+typedef void (*drisc_mach_proc_start)(drisc_ctx c, char *name, int param_count, void *params, dr_reg_t *arg_reg_list);
+typedef void (*drisc_mach_end)(drisc_ctx c);
+typedef void *(*drisc_mach_clone_code)(drisc_ctx c, void *new_base, int size);
+typedef void (*arith_op3)(drisc_ctx c, int data1, int data2, int dest, int src1, int src2);
+typedef void (*arith_op3i)(drisc_ctx c, int data1, int data2, int dest, int src1, long imm);
+typedef void (*arith_op3fi)(drisc_ctx c, int data1, int data2, int dest, int src1, double imm);
+typedef void (*arith_op2)(drisc_ctx c, int data1, int data2, int dest, int src);
+typedef void (*arith_op2i)(drisc_ctx c, int data1, int data2, int dest, long imm);
+typedef void (*branch_op)(drisc_ctx c, int data1, int data2, int src1, int src2, int label);
+typedef void (*branch_opi)(drisc_ctx c, int data1, int data2, int src, long imm, int label);
+typedef void (*cvt_op)(drisc_ctx c, int data1, int data2, int dest, int src);
+typedef void (*cvt_opi)(drisc_ctx c, int data1, int data2, int dest, long imm);
+typedef void (*ldst_op)(drisc_ctx c, int data1, int data2, int dest, int src1, int src2);
+typedef void (*ldst_opi)(drisc_ctx c, int data1, int data2, int dest, int src1, long imm);
+typedef void (*ret_op)(drisc_ctx c, int data1, int data2, int src);
+typedef void (*ret_opi)(drisc_ctx c, int data1, int data2, long imm);
+typedef void (*ret_opf)(drisc_ctx c, int data1, int data2, double imm);
+typedef void (*jmp_op)(drisc_ctx c, unsigned long arg);
+typedef void (*jal_op)(drisc_ctx c, int dest, int target);
+typedef void (*special_op)(drisc_ctx c, special_operations type, long param);
+typedef int (*call_opi)(drisc_ctx c, int type, void *xfer_address);
+typedef int (*call_opr)(drisc_ctx c, int type, int src);
+typedef void (*setf_opi)(drisc_ctx c, int data1, int data2, int dest, double imm);
+typedef void (*push_op)(drisc_ctx c, int type, int reg);
+typedef void (*push_opi)(drisc_ctx c, int type, long value);
+typedef void (*push_opfi)(drisc_ctx c, int type, double value);
+typedef int (*local_op)(drisc_ctx c, int flag, int val);
+typedef void (*save_restore_op)(drisc_ctx c, int save_restore_flag, int type, int reg);
+typedef void (*lea_op)(drisc_ctx c, int data1, int data2, int dest, int src, long offset);
+typedef int (*init_disassembly_op)(drisc_ctx c, void *dis_info);
+typedef int (*print_insn_op)(drisc_ctx c, void *dis_info, void *insn);
+typedef void (*print_reg_op)(drisc_ctx c, int typ, int reg);
+typedef int (*count_insn_op)(drisc_ctx c, int start, int end);
+
+typedef struct jmp_data_s {
+    short data1;
+    short data2;
+} jmp_data;
+
+struct jmp_table_s {
+    drisc_mach_init_routine init;
+    drisc_mach_proc_start proc_start;
+    drisc_mach_end end;
+    drisc_mach_clone_code clone_code;
+    int *type_align;
+    arith_op3 *jmp_a3;
+    jmp_data *a3_data;
+    arith_op3i *jmp_a3i;
+    jmp_data *a3i_data;
+    arith_op3fi *jmp_f3i;
+    jmp_data *f3i_data;
+    arith_op2 *jmp_a2;
+    arith_op2i *jmp_a2i;
+    jmp_data *a2_data;
+    branch_op *jmp_b;
+    branch_opi *jmp_bi;
+    jmp_data *b_data;
+    cvt_op convert;
+    ldst_op load;
+    ldst_op bsload;
+    ldst_opi loadi;
+    ldst_opi bsloadi;
+    ldst_op store;
+    ldst_opi storei;
+    ret_op ret;
+    ret_opi reti;
+    ret_opf retf;
+    arith_op2 mov;
+    arith_op2i set;
+    setf_opi setf;
+    jmp_op jv;
+    jmp_op jp;
+    jmp_op jpi;
+    jal_op jal;
+    special_op special;
+    call_opi calli;
+    call_opr callr;
+    push_op push;
+    push_opi pushi;
+    push_opfi pushfi;
+    local_op local;
+    save_restore_op save_restore;
+    
+    init_disassembly_op init_disassembly;
+    print_insn_op print_insn;
+    print_reg_op print_reg;
+    count_insn_op count_insn;
+    int do_reverse_push;
+    int *type_size;
+    lea_op lea;
+};
+
+typedef struct { 
+    int is_register;		/* true if parameter is in register */
+    unsigned reg;		/* register it's in */
+    int offset;			/* otherwise at this offset from stack */
+} drisc_parameter_type;
+#if defined(_MSC_VER)
+#ifdef DRISC_DLL_EXPORTS
+#define EXTERN extern __declspec(dllexport)
+#else
+#define EXTERN extern __declspec(dllimport)
+#endif
+#else
+#define EXTERN extern
+#endif
+
+extern jmp_table sparc_jump_table;
+EXTERN drisc_ctx dr_init(void);
+EXTERN drisc_ctx dr_vinit(void);
+EXTERN drisc_exec_ctx dr_get_exec_context(drisc_ctx x);
+EXTERN void dr_free_context(drisc_ctx c);
+EXTERN void dr_free_exec_context(drisc_exec_ctx c);
+EXTERN void dr_assoc_client_data(drisc_exec_ctx ec, int key, long value);
+EXTERN long dr_get_client_data(drisc_exec_ctx ec, int key);
+EXTERN void* dr_take_code(drisc_ctx c);
+EXTERN int dr_genlabel(drisc_ctx c);
+EXTERN void dr_label(drisc_ctx c, int label);
+EXTERN void dr_dmark(drisc_ctx c, void *addr, int label);
+EXTERN int dr_getreg(drisc_ctx c, dr_reg_t *reg_p, int type, int class);
+EXTERN int dr_getvreg(drisc_ctx c, int typ);
+EXTERN void dr_putreg(drisc_ctx c, dr_reg_t reg_p, int type);
+EXTERN void dr_mk_unavail(drisc_ctx c, int type, dr_reg_t reg);
+EXTERN void dr_mk_avail(drisc_ctx c, int type, dr_reg_t reg);
+EXTERN void dr_rawput(drisc_ctx c, dr_reg_t reg_p, int type, int class);
+EXTERN void dr_rawget(drisc_ctx c, dr_reg_t reg_p, int type, int class);
+EXTERN void dr_proc(drisc_ctx c, char *name, int ret_type);
+EXTERN void dr_param_alloc(drisc_ctx c, int argno, int type, 
+			  dr_reg_t *regp);
+EXTERN void dr_param_struct_alloc(drisc_ctx c, int argno, int type, 
+				 drisc_parameter_type *paramp);
+EXTERN dr_reg_t dr_param(drisc_ctx c, int argno);
+EXTERN dr_reg_t dr_vparam(drisc_ctx c, int argno);
+EXTERN void dr_proc_params(drisc_ctx c, char *name, int ret_type, char *arg_str);
+EXTERN void dr_dump(drisc_ctx c);
+EXTERN void *dr_end(drisc_ctx c);
+EXTERN void *dr_clone_code(drisc_ctx c, void *new_base, int size);
+EXTERN int dr_code_size(drisc_ctx c);
+EXTERN int dr_do_reverse_vararg_push(drisc_ctx c);
+EXTERN int dr_getvblock(drisc_ctx c, int size);
+EXTERN void dr_virtual_lea(drisc_ctx c, int dest, int src);
+EXTERN void dr_pbr(drisc_ctx c, int op_type, int data_type, dr_reg_t src1, 
+		   dr_reg_t src2, int label);
+
+#define dr_type_align(c, t) c->j->type_align[t]
+#define dr_type_size(c, t) c->j->type_size[t]
+#define dr_lp(c) c->dr_local_pointer
+#define dr_pp(c) c->dr_param_pointer
+#define dr_local(c, type) c->j->local(c, 0, type)
+#define dr_localb(c, bytes) c->j->local(c, 1, bytes)
+
+
+/* atomic types */
+enum {
+    DR_C,    /* char */
+    DR_UC,   /* unsigned char */
+    DR_S,    /* short */
+    DR_US,   /* unsigned short */
+    DR_I,    /* int */
+    DR_U,    /* unsigned */
+    DR_L,    /* long */
+    DR_UL,   /* unsigned long */
+    DR_P,    /* pointer */
+    DR_F,    /* floating */
+    DR_D,    /* double */
+    DR_V,    /* void */
+    DR_B,    /* block structure */
+    DR_EC,   /* execution context */
+    DR_ERR   /* no type */
+};
+
+enum {DR_VAR, DR_TEMP};
+
+EOF
+print IHOUT<<EOF;
+/* ICODE Compatability functions/types */
+#define dr_getvreg(c, type) i_local(0, type)
+#define dr_genlabel(c) i_mklabel()
+#define dr_param(c, type, num) i_paramn(type,num)
+#define dr_push_init(c)
+#define dr_do_reverse_vararg_push(c) (0)
+
+#define DR_C I_C
+#define DR_UC I_UC
+#define DR_S I_S
+#define DR_US I_US
+#define DR_I I_I
+#define DR_U I_U
+#define DR_L I_L
+#define DR_UL I_UL
+#define DR_P I_P
+#define DR_F I_F
+#define DR_D I_D
+#define	DR_V I_V
+#define DR_B I_B
+#define DR_ERR I_ERR
+
+typedef void *drisc_ctx;
+
+#define dr_getvblock(c, size) i_localb(size)
+#define dr_label(c, label) i_label(label)
+#define dr_virtual_lea(c, dest, src) i_leai(dest, src)
+#define dr_jpi(c, label) i_jpi(label)
+#define dr_jv(c, label) i_jpi(label)
+EOF
+
+print VHOUT<<EOF;
+/* VCODE Compatability functions/types */
+
+#define drisc_parameter_type v_parameter_type
+#define dr_param_alloc(c, argno, type, param) v_param_alloc(argno, type, param)
+#define dr_param_struct_alloc(static_ctx, argno, type, param) v_param_struct_alloc(argno, type, param)
+#define dr_proc(static_ctx, name) v_clambda(name)
+#define dr_proc_params(static_ctx, name, arg_str, arg_list) v_lambda(name, arg_str, arg_list, V_LEAF, insns, sizeof(insns))
+#define dr_end(static_ctx) v_end(0).v
+#define dr_dump(static_ctx) v_dump(x)
+#define dr_dmark(static_ctx, addr, label) v_dmark(addr, label)
+#define dr_getreg(static_ctx, reg_p, type, class) v_getreg(reg_p, type, class)
+#define dr_mk_unavail(static_ctx, type, reg); v_mk_unavail(type, reg)
+#define dr_mk_avail(static_ctx, type, reg); v_mk_avail(type, reg)
+#define dr_putreg(static_ctx, reg, type) v_putreg(reg, type)
+#define dr_genlabel(static_ctx) v_genlabel()
+#define dr_label(static_ctx, label) v_label(label)
+#define v_fatal(str) do {fprintf(stderr, "%s\\n", str); exit(0);} while (0)
+#define dr_jv(static_ctx, label) v_jv(label)
+#define dr_jp(static_ctx, dest_reg) v_jp(dest_reg)
+#define dr_jpi(static_ctx, imm_dest) v_jpi(imm_dest)
+#define dr_jalp(static_ctx, return_addr_reg, target) v_jalp(return_addr_reg, target)
+#define dr_special(c, type, param)
+#define dr_lp(static_ctx)  v_lp
+#define dr_pp(static_ctx)  v_lp
+#define dr_local(static_ctx, type) v_local(type)
+#define dr_localb(static_ctx, bytes) v_localb(bytes) 
+#define dr_push_init(c)
+#define dr_do_reverse_vararg_push(c) (0)
+
+#define dr_reg_t v_reg_t
+#define DR_TEMP V_TEMP
+#define DR_VAR V_VAR
+
+#define DR_C V_C
+#define DR_UC V_UC
+#define DR_S V_S
+#define DR_US V_US
+#define DR_I V_I
+#define DR_U V_U
+#define DR_L V_L
+#define DR_UL V_UL
+#define DR_P V_P
+#define DR_F V_F
+#define DR_D V_D
+#define	DR_V V_V
+#define DR_B V_B
+
+EOF
+}

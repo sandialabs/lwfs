@@ -1,0 +1,16 @@
+/**  @file fuse-debug.c
+ *   
+ *   @brief Set the global debug level for fuse-lwfs.
+ *   
+ *   @author Ron Oldfield (raoldfi\@sandia.gov).
+ *   $Revision$.
+ *   $Date$.
+ *
+ */
+
+#include "fuse-debug.h"
+#include "logger/logger.h"
+
+/* set to LOG_UNDEFINED -- log commands will use default level */
+log_level fuse_debug_level = LOG_UNDEFINED; 
+log_level fuse_call_debug_level = LOG_UNDEFINED; 

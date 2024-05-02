@@ -1,0 +1,34 @@
+8
+
+dir
+1573
+svn+ssh://raoldfi@software.sandia.gov/home/raoldfi/repos/lwfs/trunk/scripts
+svn+ssh://raoldfi@software.sandia.gov/home/raoldfi/repos/lwfs
+
+
+
+2007-08-08T17:00:27.336164Z
+1520
+raoldfi
+
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+385ae4e5-3006-0410-94d9-fca899295522
+
+darkstar
+dir
+
+trace
+dir
+

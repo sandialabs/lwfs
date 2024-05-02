@@ -1,0 +1,65 @@
+/**
+ * @file test_ops.h
+ *
+ * @author Ron Oldfield (raoldfi\@sandia.gov)
+ * $Revision$
+ * $Date$
+ */
+
+#include "common/types/types.h"
+#include <sys/time.h>
+
+#ifndef _TEST_OPS_H_
+#define _TEST_OPS_H_
+
+
+/* the maximum lenth of the object array */
+#define MAX_LEN 100
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+	extern int create_objs(
+		const int total,
+		const int num_pending, 
+		lwfs_service *service, 
+		const int num_servers, 
+		const lwfs_cid cid,
+		const lwfs_cap *cap,
+		lwfs_obj *obj);
+
+	extern int remove_objs(
+		lwfs_obj *obj, 
+		const int total,
+		const int num_pending, 
+		const lwfs_cap *cap);
+
+	extern int write_objs(
+			const lwfs_txn *txn_id,
+			const char *buf, 
+			const int buflen, 
+			lwfs_obj *obj,
+			const int num_objs,
+			const lwfs_cap *cap);
+
+	extern int read_objs(
+			const lwfs_txn *txn_id,
+			char *buf, 
+			const int buflen, 
+			lwfs_obj *obj,
+			const int num_objs,
+			const lwfs_cap *cap);
+
+	int getattr_objs(
+			const lwfs_txn *txn_id,
+			lwfs_obj *obj, 
+			const int num_objs, 
+			const lwfs_cap *cap, 
+			lwfs_attr_dat *res);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

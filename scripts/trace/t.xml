@@ -1,0 +1,287 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="sddf.xsl"?>
+<sddf>
+<stream>
+	<attr key="run date" value="Thu Apr 12 15:04:21 2007
+"/>
+</stream>
+<descr tag="1" name="event">
+	<attr key="event" value="Generic trace event"/>
+	<field type="double" name="timestamp">
+		<attr key="timestamp" value="Time of event"/>
+		<attr key="units" value="sec"/>
+	</field>
+	<field type="int" name="id">
+		<attr key="id" value="Identifier"/>
+	</field>
+	<field type="int" name="pid">
+		<attr key="pid" value="Process/Thread identifier"/>
+	</field>
+	<field type="char" name="data" dims="1">
+		<attr key="data" value="App-specific character data"/>
+	</field>
+</descr>
+<descr tag="2" name="count">
+	<attr key="count" value="Generic trace event"/>
+	<field type="double" name="timestamp">
+		<attr key="timestamp" value="Time of event"/>
+		<attr key="units" value="sec"/>
+	</field>
+	<field type="long" name="count">
+		<attr key="count" value="Count"/>
+	</field>
+	<field type="int" name="id">
+		<attr key="id" value="Identifier"/>
+	</field>
+	<field type="int" name="pid">
+		<attr key="pid" value="Process/Thread identifier"/>
+	</field>
+	<field type="char" name="data" dims="1">
+		<attr key="data" value="App-specific character data"/>
+	</field>
+</descr>
+<descr tag="3" name="interval">
+	<attr key="interval" value="Interval event"/>
+	<field type="double" name="timestamp">
+		<attr key="timestamp" value="Time of event"/>
+		<attr key="units" value="sec"/>
+	</field>
+	<field type="int" name="id">
+		<attr key="id" value="Identifier"/>
+	</field>
+	<field type="int" name="pid">
+		<attr key="pid" value="Process/Thread identifier"/>
+	</field>
+	<field type="int" name="level">
+		<attr key="level" value="Level/Scope"/>
+	</field>
+	<field type="double" name="duration">
+		<attr key="duration" value="Length of interval"/>
+		<attr key="units" value="sec"/>
+	</field>
+	<field type="char" name="data" dims="1">
+		<attr key="data" value="App-specific character data"/>
+	</field>
+</descr>
+<descr tag="4" name="throughput">
+	<attr key="throughput" value="Throughput Event"/>
+	<field type="double" name="timestamp">
+		<attr key="timestamp" value="Time of event"/>
+		<attr key="units" value="sec"/>
+	</field>
+	<field type="int" name="id">
+		<attr key="id" value="Identifier"/>
+	</field>
+	<field type="int" name="pid">
+		<attr key="pid" value="Process/Thread identifier"/>
+	</field>
+	<field type="int" name="level">
+		<attr key="level" value="Level/Scope"/>
+	</field>
+	<field type="double" name="duration">
+		<attr key="duration" value="Length of interval"/>
+		<attr key="units" value="sec"/>
+	</field>
+	<field type="long" name="count">
+		<attr key="count" value="Number of objects processed"/>
+	</field>
+	<field type="char" name="data" dims="1">
+		<attr key="data" value="App-specific character data"/>
+	</field>
+</descr>
+<event tag="1">
+	<timestamp>0.001037120819091797</timestamp>
+	<id>0</id>
+	<pid>0</pid>
+	<data>
+		<str size="5">start</str>
+	</data>
+</event>
+<count tag="2">
+	<timestamp>0.001105070114135742</timestamp>
+	<count>1</count>
+	<id>2</id>
+	<pid>0</pid>
+	<data>
+		<str size="12">loop counter</str>
+	</data>
+</count>
+<event tag="1">
+	<timestamp>0.001123189926147461</timestamp>
+	<id>1</id>
+	<pid>0</pid>
+	<data>
+		<str size="18">top of for(i) loop</str>
+	</data>
+</event>
+<event tag="1">
+	<timestamp>0.001140117645263672</timestamp>
+	<id>3</id>
+	<pid>0</pid>
+	<data>
+		<str size="20">entered testFunction</str>
+	</data>
+</event>
+<event tag="1">
+	<timestamp>0.001152992248535156</timestamp>
+	<id>2</id>
+	<pid>0</pid>
+	<data>
+		<str size="18">inside for(j) loop</str>
+	</data>
+</event>
+<event tag="1">
+	<timestamp>0.001165151596069336</timestamp>
+	<id>4</id>
+	<pid>0</pid>
+	<data>
+		<str size="20">exiting testFunction</str>
+	</data>
+</event>
+<interval tag="3">
+	<timestamp>2.006400108337402</timestamp>
+	<id>0</id>
+	<pid>1</pid>
+	<level>1</level>
+	<duration>2.005270957946777</duration>
+	<data>
+		<str size="22">internal loop interval</str>
+	</data>
+</interval>
+<count tag="2">
+	<timestamp>2.006460189819336</timestamp>
+	<count>2</count>
+	<id>2</id>
+	<pid>0</pid>
+	<data>
+		<str size="12">loop counter</str>
+	</data>
+</count>
+<event tag="1">
+	<timestamp>2.006488084793091</timestamp>
+	<id>1</id>
+	<pid>0</pid>
+	<data>
+		<str size="18">top of for(i) loop</str>
+	</data>
+</event>
+<event tag="1">
+	<timestamp>2.006503105163574</timestamp>
+	<id>3</id>
+	<pid>0</pid>
+	<data>
+		<str size="20">entered testFunction</str>
+	</data>
+</event>
+<event tag="1">
+	<timestamp>2.006515979766846</timestamp>
+	<id>2</id>
+	<pid>0</pid>
+	<data>
+		<str size="18">inside for(j) loop</str>
+	</data>
+</event>
+<event tag="1">
+	<timestamp>2.006529092788696</timestamp>
+	<id>2</id>
+	<pid>0</pid>
+	<data>
+		<str size="18">inside for(j) loop</str>
+	</data>
+</event>
+<event tag="1">
+	<timestamp>2.006541013717651</timestamp>
+	<id>4</id>
+	<pid>0</pid>
+	<data>
+		<str size="20">exiting testFunction</str>
+	</data>
+</event>
+<interval tag="3">
+	<timestamp>3.013560056686401</timestamp>
+	<id>0</id>
+	<pid>2</pid>
+	<level>1</level>
+	<duration>1.007099151611328</duration>
+	<data>
+		<str size="22">internal loop interval</str>
+	</data>
+</interval>
+<count tag="2">
+	<timestamp>3.013614177703857</timestamp>
+	<count>3</count>
+	<id>2</id>
+	<pid>0</pid>
+	<data>
+		<str size="12">loop counter</str>
+	</data>
+</count>
+<event tag="1">
+	<timestamp>3.013636112213135</timestamp>
+	<id>1</id>
+	<pid>0</pid>
+	<data>
+		<str size="18">top of for(i) loop</str>
+	</data>
+</event>
+<event tag="1">
+	<timestamp>3.013652086257935</timestamp>
+	<id>3</id>
+	<pid>0</pid>
+	<data>
+		<str size="20">entered testFunction</str>
+	</data>
+</event>
+<event tag="1">
+	<timestamp>3.013665199279785</timestamp>
+	<id>2</id>
+	<pid>0</pid>
+	<data>
+		<str size="18">inside for(j) loop</str>
+	</data>
+</event>
+<event tag="1">
+	<timestamp>3.013678073883057</timestamp>
+	<id>2</id>
+	<pid>0</pid>
+	<data>
+		<str size="18">inside for(j) loop</str>
+	</data>
+</event>
+<event tag="1">
+	<timestamp>3.013691186904907</timestamp>
+	<id>2</id>
+	<pid>0</pid>
+	<data>
+		<str size="18">inside for(j) loop</str>
+	</data>
+</event>
+<event tag="1">
+	<timestamp>3.013703107833862</timestamp>
+	<id>4</id>
+	<pid>0</pid>
+	<data>
+		<str size="20">exiting testFunction</str>
+	</data>
+</event>
+<interval tag="3">
+	<timestamp>3.013720035552979</timestamp>
+	<id>0</id>
+	<pid>3</pid>
+	<level>1</level>
+	<duration>0.0001080036163330078</duration>
+	<data>
+		<str size="22">internal loop interval</str>
+	</data>
+</interval>
+<interval tag="3">
+	<timestamp>3.013739109039307</timestamp>
+	<id>0</id>
+	<pid>0</pid>
+	<level>0</level>
+	<duration>3.012639999389648</duration>
+	<data>
+		<str size="21">outside loop interval</str>
+	</data>
+</interval>
+</sddf>

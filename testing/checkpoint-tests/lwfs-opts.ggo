@@ -1,0 +1,2 @@
+
+option "lwfs-config-file" - "Configuration file for LWFS services" string optional

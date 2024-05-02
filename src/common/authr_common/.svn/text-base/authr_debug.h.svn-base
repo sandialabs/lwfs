@@ -1,0 +1,26 @@
+/*-------------------------------------------------------------------------*/
+/**  
+ *   @file authr_debug.h
+ *   
+ *   @author Ron Oldfield (raoldfi\@sandia.gov)
+ *   $Revision$
+ *   $Date$
+ *
+ */
+
+#ifndef _AUTH_DEBUG_H_
+#define _AUTH_DEBUG_H_
+
+#include "support/logger/logger.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+	extern log_level authr_debug_level;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif 

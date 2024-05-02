@@ -1,0 +1,86 @@
+# Generated automatically from Makefile.in by configure.
+srcdir = .
+
+CC = cl -nologo
+INSTALL = h:/cygwin/bin/install.exe
+INSTALL_DATA = $(INSTALL) -m 644
+CPPFLAGS = -Ih:/winnt/ecl/../include
+CFLAGS =   /MT -DYY_USE_PROTOS -DWINNT $(CPPFLAGS) -I$(srcdir) 
+LDFLAGS =  
+
+OBJS = ecl.obj ecl_node.obj cg.obj xlate.obj
+LIBS = h:/winnt/ecl/../lib/icode.lib h:/winnt/ecl/../lib/vcode.lib 
+RANLIB = true
+YACC = bison -y
+
+prefix = h:/winnt
+exec_prefix = $(prefix)
+
+binprefix =
+manprefix =
+
+libdir = $(exec_prefix)/lib
+
+incdir = $(prefix)/include
+
+all:	ecl.lib
+
+xlate.c: icode.spec
+	perl h:/winnt/ecl/../lib/xlate.pl -spec icode.spec xlate.c
+
+icode.spec: cg.c cg.obj
+	rm -f icode.spec
+	grep "/* op_i_" cg.c | sed 's=.*/* op_i_==; s/ .*//' | sort -u > icode.spec
+
+lex.yy.c: ecl.l
+	flex -Ss:apps/gnu/lib/flex.skel ecl.l
+
+ecl.tab.h ecl.c: ecl.y
+	$(YACC) -d ecl.y
+	mv y.tab.h ecl.tab.h
+	mv y.tab.c ecl.c
+
+structs.h : struct.pl ecl.structs
+	perl struct.pl < ecl.structs
+
+ecl_node.c : struct.pl ecl.structs
+
+ecl.obj: structs.h lex.yy.c
+ecl_node.obj: structs.h
+
+ecl.lib: $(OBJS)
+	rm -f ecl.lib
+	ar rc ecl.lib $(OBJS)
+	$(RANLIB) ecl.lib
+
+t1.exe: t1.obj ecl.lib t1.c
+	$(CC) $(LDFLAGS) -o t1.exe t1.obj ecl.lib $(LIBS)
+
+t2.exe: t2.obj ecl.lib t2.c
+	$(CC) $(LDFLAGS) -o t2.exe t2.obj ecl.lib $(LIBS)
+
+test: t1.exe t2.exe
+	./t1.exe
+	./t2.exe
+
+clean:
+	rm -f ecl.lib $(OBJS) xlate.c lex.yy.c ecl.c ecl_node.c structs.h icode.spec *.obj config.cache
+
+install: all test
+	$(INSTALL_DATA) ecl.lib $(libdir)/ecl.lib
+	$(RANLIB) $(libdir)/ecl.lib
+	-cmp -s ecl.h $(incdir)/ecl.h || $(INSTALL_DATA) ecl.h $(incdir)/ecl.h
+
+internal_release:
+	(cd /tmp ; cvs -Q -d /users/c/chaos/CVSmaster export -r HEAD tcc_cg )
+	(cd /tmp ; cvs -Q -d /users/c/chaos/CVSmaster export -r HEAD ecl )
+	(cd /tmp ; tar cvf ecl.tar tcc_cg ecl)
+	(rm -fr /tmp/tcc_cg /tmp/ecl )
+	(cd /tmp ; gzip -9 --stdout ecl.tar > ecl.tar.gz )
+	(cd /tmp ; compress ecl.tar )
+	(cd /tmp ; mv ecl.tar.gz /net/www2-int/systems/chaos/ )
+	(cd /tmp ; mv ecl.tar.Z /net/www2-int/systems/chaos/ )
+
+depend:
+	makedepend -- $(CPPFLAGS) -- *.c
+	etags cg.c ecl.y ecl_node.c xlate.c 

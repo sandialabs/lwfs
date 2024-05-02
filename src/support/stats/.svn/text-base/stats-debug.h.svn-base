@@ -1,0 +1,25 @@
+/**  
+ *   @file stats-debug.h
+ *   
+ *   @author Ron Oldfield (raoldfi\@sandia.gov)
+ *   $Revision$
+ *   $Date$
+ *
+ */
+
+#ifndef _STATS_DEBUG_H_
+#define _STATS_DEBUG_H_
+
+#include "support/logger/logger.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+	extern log_level stats_debug_level;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif 

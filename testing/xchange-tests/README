@@ -1,0 +1,11 @@
+Data transforms on LWFS storage
+Jay Lofstead (lofstead@cc)
+Last Updated: 2007-02-14
+
+The xchange-tests program has a single primary option:
+testid.  The valid values are as follow:
+0 = test the composite file API to create, write, read, and delete a file
+1 = test the transform composite file API for the same operations
+2 = test the raw API to do the same operations as above.  This is intended
+    as a way to determine how to perform various operations and then be
+    used as a template to construct the composite operations.

@@ -1,0 +1,360 @@
+#include "mpi.h"
+#include <string.h>
+#include <stdlib.h>
+#include <malloc.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <argp.h>
+#include "support/logger/logger.h"
+
+
+#define BUFSIZE 1048576
+
+/* ----------------- COMMAND-LINE OPTIONS --------------- */
+
+const char *argp_program_version = "$Revision$"; 
+const char *argp_program_bug_address = "<raoldfi@sandia.gov>"; 
+
+static char doc[] = "Test MPI-I/O writing";
+static char args_doc[] = ""; 
+
+/**
+ * @brief Command line arguments for testing the storage service. 
+ */
+struct arguments {
+
+	/** @brief Debug level to use. */
+	log_level debug_level; 
+
+	/** @brief The type of experiment. */
+	int type; 
+
+	/** @brief The number of trials per experiment. */
+	int num_trials; 
+
+	/** @brief The number of operations in a trial. */
+	int ops_per_trial; 
+
+	/** @brief the size of the input/output buffer to use for each op. */
+	int bytes_per_op; 
+
+	/** @brief Where to output results. */
+	char *result_file; 
+
+	/** @brief Mode to use when opening file. */
+	char *result_file_mode; 
+
+	/** @brief Where to output results. */
+	char *scratch_file; 
+
+}; 
+
+static void print_args(FILE *fp, struct arguments *args) 
+{
+	fprintf(fp, "------------  ARGUMENTS -----------\n");
+	fprintf(fp, "\ttype = %d\n", args->type);
+	fprintf(fp, "\tverbose = %d\n", args->debug_level);
+	fprintf(fp, "\tbytes-per-op = %d\n", args->bytes_per_op);
+	fprintf(fp, "\tnum-trials = %d\n", args->num_trials);
+	fprintf(fp, "\tops-per-trial = %d\n", args->ops_per_trial);
+	fprintf(fp, "\tresult-file = %s\n", ((args->result_file)? args->result_file: "stdout"));
+	fprintf(fp, "\tresult-file-mode = %s\n", args->result_file_mode);
+	fprintf(fp, "\tscratch-file = %s\n", args->scratch_file);
+	fprintf(fp, "-----------------------------------\n");
+}
+
+
+static struct argp_option options[] = {
+	{"verbose",    1, "<0=none,...,6=all>", 0, "Produce verbose output"},
+	{"bytes-per-op",    2, "<val>", 0, "Size of buffer to use per operation"},
+	{"num-trials", 3, "<val>", 0, "Number of trials to run"},
+	{"ops-per-trial",    4, "<val>", 0, "Number of ops per trial"},
+	{"result-file",5, "<FILE>", 0, "Results file"},
+	{"result-file-mode",6, "<val>", 0, "Results file mode"},
+	{"scratch-file",7, "<val>", 0, "Scratch file"},
+	{"type",8, "<val>", 0, "Type of experiment"},
+	{ 0 }
+};
+
+/** 
+ * @brief Parse a command-line argument. 
+ * 
+ * This function is called by the argp library. 
+ */
+static error_t parse_opt(
+		int key, 
+		char *arg, 
+		struct argp_state *state)
+{
+	/* get the input arguments from argp_parse, which points to 
+	 * our arguments structure */
+	struct arguments *arguments = state->input; 
+
+	switch (key) {
+
+		case 1: /* verbose */
+			arguments->debug_level= atoi(arg);
+			break;
+
+		case 2: /* bytes_per_op */
+			arguments->bytes_per_op = atoi(arg);
+			break;
+
+		case 3: /* num_trials */
+			arguments->num_trials= atoi(arg);
+			break;
+
+		case 4: /* ops_per_trial */
+			arguments->ops_per_trial= atoi(arg);
+			break;
+
+		case 5: /* result_file */
+			arguments->result_file = arg;
+			break;
+
+		case 6: /* result_file_mode */
+			arguments->result_file_mode = arg;
+			break;
+
+		case 7: /* scratch_file */
+			arguments->scratch_file = arg;
+			break;
+
+		case 8: /* type */
+			arguments->type = atoi(arg);
+			break;
+
+		case ARGP_KEY_ARG:
+			/* we don't expect any arguments */
+			if (state->arg_num >= 0) {
+				argp_usage(state);
+			}
+			// arguments->args[state->arg_num] = arg; 
+			break; 
+
+		case ARGP_KEY_END:
+			if (state->arg_num < 0)
+				argp_usage(state);
+			break;
+
+		default:
+			return ARGP_ERR_UNKNOWN; 
+	}
+
+	return 0;
+}
+
+static struct argp argp = {options, parse_opt, args_doc, doc}; 
+
+
+
+static void nto1_write(
+	MPI_Comm comm, 
+	const char *fname,
+	const int bufsize, 
+	const int num_ops, 
+	double *t_create,
+	double *t_write,
+	double *t_close)
+{
+    int myrank, i;
+    double t_start; 
+    char filename[256]; 
+    char *buf = NULL;
+    MPI_File thefile; 
+
+    MPI_Comm_rank(comm, &myrank);
+
+    buf = (char *)malloc(sizeof(*buf)*bufsize);
+    if (!buf) {
+        fprintf(stderr, "unable to allocate buffer\n");
+        MPI_Abort(MPI_COMM_WORLD, -1); 
+    }
+
+    for (i=0; i<bufsize; i++) {
+        buf[i] = myrank*bufsize + i; 
+    }
+    sprintf(filename, "%s", fname); 
+
+    /* Time the open command */
+    MPI_Barrier(comm); 
+    t_start = MPI_Wtime(); 
+    MPI_File_open(comm, filename, 
+            MPI_MODE_WRONLY | MPI_MODE_CREATE,
+            MPI_INFO_NULL, &thefile);
+
+    MPI_File_set_view(thefile, myrank*num_ops*bufsize, 
+            MPI_INT, MPI_BYTE, "native", MPI_INFO_NULL);
+    *t_create = MPI_Wtime() - t_start; 
+    MPI_Barrier(comm); 
+
+
+    /* Time the write commands */
+    MPI_Barrier(comm); 
+    t_start = MPI_Wtime(); 
+    for (i=0; i<num_ops; i++) {
+        MPI_File_write(thefile, buf, bufsize, MPI_BYTE, 
+                MPI_STATUS_IGNORE);
+    }
+    MPI_File_sync(thefile); 
+    *t_write = MPI_Wtime() - t_start; 
+    MPI_Barrier(comm); 
+
+
+    /* time the close operation */
+    MPI_Barrier(comm); 
+    t_start = MPI_Wtime(); 
+    MPI_File_close(&thefile);
+    *t_close = MPI_Wtime() - t_start; 
+    MPI_Barrier(comm); 
+
+    /*MPI_File_delete(filename, MPI_INFO_NULL);*/
+
+    free(buf);
+
+    return;
+}
+
+
+void print_stats(
+        FILE *result_fp, 
+        struct arguments *args, 
+        double *t_create,
+        double *t_write, 
+        double *t_close)
+{
+    int np; 
+    int i;
+    double mb;
+    double *mbps; 
+
+
+    MPI_Comm_size(MPI_COMM_WORLD, &np); 
+
+    /* calculate the aggregate megabytes per operation */
+    mb = (double)(args->bytes_per_op*np)/(1024*1024); 
+
+    /* calculate the aggregate MB/s of each operation */
+    mbps = (double *)malloc(args->num_trials *sizeof(double));
+    for (i=0; i<args->num_trials; i++) {
+        mbps[i] = mb/t_write[i]; 
+    }
+
+    fprintf(result_fp, "%s ----------------------------------------------------", "%");
+    fprintf(result_fp, "-------------------------------------------------------\n");
+    fprintf(result_fp, "%s clients    ", "%"); 
+    fprintf(result_fp, " num-trials "); 
+    fprintf(result_fp, " ops/trial  "); 
+    fprintf(result_fp, " MB/op        "); 
+    fprintf(result_fp, " mean wrt(s)  "); 
+    fprintf(result_fp, " min wrt(s)   "); 
+    fprintf(result_fp, " max wrt(s)   "); 
+    fprintf(result_fp, " stddev wrt(s)"); 
+    fprintf(result_fp, " mean (MB/s)  "); 
+    fprintf(result_fp, " min (MB/s)    "); 
+    fprintf(result_fp, " max (MB/s)    "); 
+    fprintf(result_fp, " stdev (MB/s)\n"); 
+
+
+    /* print the row */
+    fprintf(result_fp, "%09d   ", np);    
+    fprintf(result_fp, "%09d   ", args->num_trials);    
+    fprintf(result_fp, "%09d   ", args->ops_per_trial); 
+    fprintf(result_fp, "%1.6e  ", mb);    
+    fprintf(result_fp, "%1.6e  ", stats_mean(t_write, args->num_trials)); 
+    fprintf(result_fp, "%1.6e  ", stats_min(t_write, args->num_trials, &i)); 
+    fprintf(result_fp, "%1.6e  ", stats_max(t_write, args->num_trials, &i)); 
+    fprintf(result_fp, "%1.6e  ", stats_stddev(t_write, args->num_trials)); 
+    fprintf(result_fp, "%1.6e  ", stats_mean(mbps, args->num_trials)); 
+    fprintf(result_fp, "%1.6e  ", stats_min(mbps, args->num_trials, &i)); 
+    fprintf(result_fp, "%1.6e  ", stats_max(mbps, args->num_trials, &i)); 
+    fprintf(result_fp, "%1.6e \n", stats_stddev(mbps, args->num_trials)); 
+
+    fprintf(result_fp, "%s ----------------------------------------------------", "%");
+    fprintf(result_fp, "-------------------------------------------------------\n");    
+
+    free(mbps); 
+}
+
+
+int main(int argc, char *argv[])
+{
+    int myrank; 
+    int i; 
+    struct arguments args; 
+
+    /* default command-line arguments */
+    args.type = 0; 
+    args.debug_level = LOG_ALL; 
+    args.ops_per_trial = 10; 
+    args.bytes_per_op = 1024; 
+    args.num_trials = 1; 
+    args.result_file=NULL;
+    args.result_file_mode = "w"; 
+    args.scratch_file = "/usr/tmp/testfile"; 
+
+    /* local variables */
+    double *t_write = NULL;
+    double *t_create = NULL;
+    double *t_close = NULL;
+    char hostname[256];
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+
+    gethostname(hostname, sizeof(hostname));
+    fprintf(stderr, "%d:%s starting...\n", myrank, hostname);
+
+    /* parse the command-line arguments */
+    argp_parse(&argp, argc, argv, 0, 0, &args); 
+    if (myrank == 0) {
+        print_args(stdout, &args);
+    }
+
+    /* allocate buffers for the timings */
+    t_write = (double *)malloc(args.num_trials*sizeof(double));
+    if (!t_write) {
+        fprintf(stderr, "%d: could not allocate buffer\n", myrank);
+        MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+
+    t_create = (double *)malloc(args.num_trials*sizeof(double));
+    if (!t_create) {
+        fprintf(stderr, "%d: could not allocate buffer\n", myrank);
+        MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+
+    t_close = (double *)malloc(args.num_trials*sizeof(double));
+    if (!t_close) {
+        fprintf(stderr, "%d: could not allocate buffer\n", myrank);
+        MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+
+    /* initialize buffers for the timings */
+    for (i=0; i<args.num_trials; i++) {
+        t_write[i] = (double)1.0;
+        t_create[i] = (double)1.0;
+        t_close[i] = (double)1.0;
+    }
+
+    for (i=0; i<args.num_trials; i++) {
+
+        nto1_write(MPI_COMM_WORLD, args.scratch_file, 
+                args.bytes_per_op, args.ops_per_trial,
+                &t_create[i], &t_write[i], &t_close[i]);
+    }
+
+
+    /* print statistics */
+    if (myrank == 0) {
+        print_stats(stdout, &args, t_create, t_write, t_close); 
+    }
+
+    MPI_Finalize();
+
+    free(t_write); 
+    free(t_create); 
+    free(t_close); 
+
+    return 0; 
+}

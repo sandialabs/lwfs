@@ -1,0 +1,2 @@
+option "server-nid" - "NID of the service to kill" int default="0" optional
+option "server-pid" - "PID of the service to kill" int default="0" required

@@ -1,0 +1,559 @@
+/*-------------------------------------------------------------------------*/
+/**  
+ *   @file mds_clnt.c
+ *   
+ *   @brief Method definitions for the client-side interface to the LWFS 
+ *          metadata service (MDS). 
+ * 
+ *   The role of each client-side method is to create and send an operation
+ *   request to the MDS. The request is sent in the form of an xdr-encoded
+ *   lwfs_request_header followed by (if necessary) the arguments for the operation.
+ *   The arguments are only sent if the size of the arguments are small enough to 
+ *   fit into a fixed sized buffer reserved for operation requests.  If the arguments
+ *   are too large, a field in the header directs the server to retrieve the arguments
+ *   from a client-side portal that holds the arguments. 
+ * 
+ *   Each client-side method call performs the following operations: 
+ *   -# Create a portal for the result. 
+ *   -# If arguments do not fit into request buffer, create a portal for arguments.
+ *   -# Create the lwfs_request_header.
+ *   -# Encode the lwfs_request_header into an xdr request buffer.
+ *   -# If arguments fit in request buffer, encode the arguments request buffer;
+ *      else, encode the arguments in the arguments portal buffer.
+ *   -# Send the request buffer to the MDS server.
+ *   -# wait for the send to complete.
+ *   
+ *   @author Rolf Riesen (rolf\@cs.sandia.gov)
+ *   $Revision: 791 $
+ *   $Date: 2006-06-29 21:32:24 -0600 (Thu, 29 Jun 2006) $
+ */
+
+#include <stdio.h>
+#include <rpc/rpc.h>
+#include <portals/p30.h>
+#include "lwfs.h"
+#include "logger/logger.h"
+#include "mds/mds_clnt.h"
+#include "comm/comm.h"
+#include "mds/mds_debug.h"
+
+
+/* --- PRIVATE METHODS ------------------------------------------------------ */
+
+
+/**
+ * @brief A helper function to set up the call backs and send the request
+ *
+ * @param opcode  The requested operation.
+ * @param opcode  A pointer the argument structure
+ * @param opcode  A pointer the result structure
+ * @param opcode  The request structure.
+ * @param opcode  A pointer to a function to encode the arguments.
+ * @param opcode  A pointer to a function to decode the result.
+ */
+static lwfs_return_code_t
+send_request(   uint32_t opcode,
+		void *args,
+		void *result,
+		void *req,
+		void *encode_args,
+		void *decode_res)
+{
+
+lwfs_return_code_t rc;
+lwfs_process_id_t mds_pid; 
+
+
+    /* set the callback functions for encoding args and decoding result */ 
+    lwfs_comm_set_callbacks((xdrproc_t)encode_args,
+	    (xdrproc_t)decode_res, req);
+    
+    /* get the pid of the MDS */
+    lwfs_comm_get_mds_pid(&mds_pid); 
+
+    /* Send the request */
+    rc= lwfs_comm_send_request(mds_pid, opcode, args, result, req); 
+    if (rc != LWFS_OK) {
+	log_error(mds_debug_level, "error sending request: %s",
+		lwfs_err_str(rc));
+	return rc; 
+    }
+    return LWFS_OK;
+
+}  /* end of send_request() */
+
+
+
+/**
+ * @brief Send a request with one node ID to the MDS server.
+ *
+ * @param opcode  The requested operation.
+ * @param node    The ID of the node.
+ * @param cap     The capability to operate on the node.
+ * @param result  Where to place the result of the operation.
+ * @param request The request data structure. 
+ *
+ * Functions that use this method are mds_remove(), mds_rmdir(), and
+ * mds_getattr().
+ * They operate on a single node in the directory tree, and expect a node
+ * operation result; i.e. a note and a return code.
+ *
+ */
+static lwfs_return_code_t
+clnt_send_N(uint32_t opcode, 
+	    lwfs_obj_ref_t *node, 
+	    lwfs_cap_t *cap,
+	    mds_res_note_rc_t *result, 
+	    lwfs_request_t *req) 
+{ 
+
+mds_args_N_t args; 
+
+
+    /* Fill in the arguments */
+    args.node.ID= node;
+    args.node.cap= cap; 
+    
+    /* send it to the MDS server */
+    return send_request(opcode, &args, result, req, &xdr_mds_args_N_t,
+	    &xdr_mds_res_note_rc_t);
+
+}  /* end of clnt_send_N() */
+
+
+
+/**
+ * @brief Send a request with two node IDs and a name to the MDS server.
+ *
+ * @param opcode  The requested operation.
+ * @param node1   The ID of the first node.
+ * @param node2   The ID of the second node.
+ * @param name    The new name, or name to search for.
+ * @param cap1    The capability to operate on node1.
+ * @param cap2    The capability to operate on node2.
+ * @param result  Where to place the result of the operation.
+ * @param request The request data structure. 
+ *
+ * Function that use this method are mds_rename() and mds_link(), which
+ * specify two nodes in the directory tree plus a new name. The expected
+ * result is a node ID and a return code.
+ */
+static lwfs_return_code_t
+clnt_send_NNn(  uint32_t opcode, 
+		lwfs_obj_ref_t *node1, 
+		lwfs_obj_ref_t *node2, 
+		mds_name_t *name, 
+		lwfs_cap_t *cap1,
+		lwfs_cap_t *cap2,
+		mds_res_N_rc_t *result, 
+		lwfs_request_t *req) 
+{ 
+
+mds_args_NNn_t args; 
+
+
+    /* Fill in the arguments */
+    args.node1.ID= node1;
+    args.node1.cap= cap1; 
+    args.node2.ID= node2; 
+    args.node2.cap= cap2; 
+    args.name= name;
+
+    /* send it to the MDS server */
+    return send_request(opcode, &args, result, req, &xdr_mds_args_NNn_t,
+	    &xdr_mds_res_N_rc_t);
+
+}  /* end of clnt_send_NNn() */
+
+
+
+/**
+ * @brief Send a request with one node ID and a name to the MDS server.
+ *
+ * @param opcode  The requested operation.
+ * @param node1   The ID of the first node.
+ * @param node2   The ID of the second node.
+ * @param name    The new name, or name to search for.
+ * @param cap1    The capability to operate on node1.
+ * @param cap2    The capability to operate on node2.
+ * @param result  Where to place the result of the operation.
+ * @param request The request data structure. 
+ *
+ * Functions that use this method are mds_create(), mds_lookup(), and mds_mkdir(),
+ * which specify a node in the directory tree plus a new name. The expected
+ * result is a node ID and a return code.
+ */
+static lwfs_return_code_t
+clnt_send_Nn(   uint32_t opcode, 
+		lwfs_obj_ref_t *node, 
+		mds_name_t *name, 
+		lwfs_cap_t *cap,
+		mds_res_N_rc_t *result, 
+		lwfs_request_t *req) 
+{
+
+mds_args_Nn_t args; 
+
+
+    /* Fill in the arguments */
+    args.node.ID= node;
+    args.node.cap= cap; 
+    args.name= name;
+
+    /* send it to the MDS server */
+    return send_request(opcode, &args, result, req, &xdr_mds_args_Nn_t,
+	    &xdr_mds_res_N_rc_t);
+
+}  /* end of clnt_send_Nn() */
+
+
+
+/**
+ * @brief Send a request with one node ID to the MDS server and get a directory listing back.
+ *
+ * @param opcode  The requested operation.
+ * @param node    The ID of the node.
+ * @param cap     The capability to operate on the node.
+ * @param result  Where to place the result of the operation.
+ * @param request The request data structure. 
+ *
+ * The function which uses this method is mds_readdir().
+ * It operates on a single node in the directory tree, and expects a
+ * directory listing back.
+ *
+ */
+static lwfs_return_code_t
+clnt_send_N_dir(uint32_t opcode, 
+	    lwfs_obj_ref_t *node, 
+	    lwfs_cap_t *cap,
+	    mds_readdir_res_t *result, 
+	    lwfs_request_t *req) 
+{ 
+
+mds_args_N_t args; 
+
+
+    /* Fill in the arguments */
+    args.node.ID= node;
+    args.node.cap= cap; 
+    
+    /* send it to the MDS server */
+    return send_request(opcode, &args, result, req, &xdr_mds_args_N_t,
+	    &xdr_mds_readdir_res_t);
+
+}  /* end of clnt_send_N_dir() */
+
+
+
+/* --- MDS API METHODS ------------------------------------------------------ */
+
+/**
+ * @brief Initialization for a client using the MDS API.
+ */
+lwfs_return_code_t mds_init_client() {
+	return LWFS_OK;
+}
+
+
+/**
+ * @brief Shutdown the mds client.
+ */
+lwfs_return_code_t mds_fini_client() {
+	return LWFS_OK;
+}
+
+
+/** 
+ * @brief Create a named entry in a directory.
+ *
+ * @param dir the directory to modify.
+ * @param name the name of the new object. 
+ * @param cap the capability that allows us modify the directory.
+ * @param result memory for the result.
+ * @param request the pending request handle (used to test for completion)
+ */
+lwfs_return_code_t mds_create(
+	lwfs_obj_ref_t *dir, 
+ 	mds_name_t *name, 
+	lwfs_cap_t *cap, 
+	mds_res_N_rc_t *result,
+	lwfs_request_t *req) 
+{
+	return clnt_send_Nn(MDS_CREAT, dir, name, cap, result, req);
+}
+
+
+/** 
+ * @brief Remove a named entry from a directory.
+ *
+ * @param obj the object to remove.
+ * @param cap the capability that allows us modify the directory.
+ * @param result the mds_res_N_rc structure for the removed entry.
+ * @param request the lwfs_request data structure for the operation.
+ */
+lwfs_return_code_t mds_remove(
+	lwfs_obj_ref_t *obj, 
+	lwfs_cap_t *cap, 
+	mds_res_note_rc_t *result,
+	lwfs_request_t *req) 
+{ 
+	return clnt_send_N(MDS_REMOVE, obj, cap, result, req);
+}
+
+
+/** 
+ * @brief Find an entry in a directory.
+ *
+ * @param dir the directory.
+ * @param cap the capability that allows us read from the directory.
+ * @param result the mds_res_N_rc structure for the named entry.
+ * @param request the lwfs_request data structure for the operation.
+ */
+lwfs_return_code_t mds_lookup2(
+	lwfs_obj_ref_t *node, 
+	lwfs_cap_t *cap, 
+	mds_res_note_rc_t *result,
+	lwfs_request_t *req) 
+{
+	return clnt_send_N(MDS_LOOKUP2, node, cap, result, req);
+}
+
+
+/** 
+ * @brief Find a named entry in a directory.
+ *
+ * @param dir the directory.
+ * @param name the name of the object to find. 
+ * @param cap the capability that allows us read from the directory.
+ * @param result the mds_res_N_rc structure for the named entry.
+ * @param request the lwfs_request data structure for the operation.
+ */
+lwfs_return_code_t mds_lookup(
+	lwfs_obj_ref_t *dir, 
+ 	mds_name_t *name, 
+	lwfs_cap_t *cap, 
+	mds_res_N_rc_t *result,
+	lwfs_request_t *req) 
+{
+	return clnt_send_Nn(MDS_LOOKUP, dir, name, cap, result, req);
+}
+
+
+/** 
+ * @brief Create a directory.
+ *
+ * @param dir the root directory.
+ * @param name the name of the directory to create. 
+ * @param cap the capability that allows us modify the root directory.
+ * @param result the mds_res_N_rc structure for the new directory.
+ * @param request the lwfs_request data structure for the operation.
+ */
+lwfs_return_code_t mds_mkdir(
+	lwfs_obj_ref_t *dir, 
+ 	mds_name_t *name, 
+	lwfs_cap_t *cap, 
+	mds_res_N_rc_t *result,
+	lwfs_request_t *req) 
+{
+	return clnt_send_Nn(MDS_MKDIR, dir, name, cap, result, req);
+}
+
+
+/** 
+ * @brief Remove a directory.
+ *
+ * @param dir the root directory.
+ * @param name the name of the directory to remove. 
+ * @param cap the capability that allows us modify the root directory.
+ * @param result the mds_res_N_rc structure for the removed directory.
+ * @param request the lwfs_request data structure for the operation.
+ */
+lwfs_return_code_t mds_rmdir(
+	lwfs_obj_ref_t *dir, 
+	lwfs_cap_t *cap, 
+	mds_res_note_rc_t *result,
+	lwfs_request_t *req) 
+{
+	return clnt_send_N(MDS_RMDIR, dir, cap, result, req);
+}
+
+
+/** 
+ * @brief Rename an object.
+ *
+ * @param objID the ID of the object to be renamed
+ * @param srccap the capability that allows us remove the entry from "srcdir" 
+ * @param destdir the destination directory.
+ * @param destname the new name of the entry. 
+ * @param destcap the capability that allows us create the new entry in the "destdir" directory.
+ * @param result the mds_res_N_rc structure for the new entry.
+ * @param request the lwfs_request data structure for the operation.
+ *
+ * mds_rename() can be used to give an object a new name, as well as
+ * moving it to another directory. This function needs the object's ID,
+ * which is enough to find in which directory it resides, and what its
+ * name is. A new or the current name can be provided. The destination
+ * directory can be the one in which the object currently resides, or
+ * a new one.
+ *
+ * The (new) object name must not collide with another object name in
+ * the new directory.
+ */
+lwfs_return_code_t
+mds_rename( lwfs_obj_ref_t *objID,
+	    lwfs_cap_t *srccap,
+	    lwfs_obj_ref_t *destdir, 
+	    mds_name_t *destname, 
+	    lwfs_cap_t *destcap,
+	    mds_res_N_rc_t *result,
+	    lwfs_request_t *req) 
+{ 
+    return clnt_send_NNn(MDS_RENAME, objID, destdir, destname, srccap, destcap,
+	result, req);
+}
+
+
+/** 
+ * @brief Link an object to a named entity.
+ *
+ * This method creates an named entry in the destination 
+ * directory that refers to an existing object.
+ *
+ * @param src the object to link with.
+ * @param destdir the destination directory.
+ * @param destname the name of link.
+ * @param destcap the capability that allows us to create an entry in the dest dir.
+ * @param result the result 
+ * @param request the lwfs_request data structure for the operation.
+ *
+ */
+lwfs_return_code_t
+mds_link(   lwfs_obj_ref_t *target,
+	    lwfs_obj_ref_t *destdir, 
+	    mds_name_t *destname, 
+	    lwfs_cap_t *destcap,
+	    mds_res_N_rc_t *result,
+	    lwfs_request_t *req)
+{ 
+
+lwfs_cap_t *notused;
+
+
+    notused= destcap;
+    return clnt_send_NNn(MDS_LINK, target, destdir, destname, notused, destcap,
+	result, req);
+
+}
+
+
+/**
+ * @brief Read the contents of a directory.
+ *
+ * @param dir  the directory
+ * @param cap  the capability that allows us to read the contents.
+ * @param result the list of entries (obj ref + name) in the directory
+ * @param request the lwfs_request data structure for the operation
+ */
+lwfs_return_code_t mds_readdir(
+		lwfs_obj_ref_t *dir,
+		lwfs_cap_t *cap,
+		mds_readdir_res_t *result,
+		lwfs_request_t *req)
+{
+	return clnt_send_N_dir(MDS_READDIR, dir, cap, result, req);
+}
+
+
+/** 
+ * @brief Get the attributes of an object.
+ *
+ * @param obj the object of interest.
+ * @param cap the capability that allows us read the attributes.
+ * @param result the object attributes (or null)
+ * @param request the lwfs_request data structure for the operation.
+ */
+lwfs_return_code_t mds_getattr(
+	lwfs_obj_ref_t *obj, 
+	lwfs_cap_t *cap,
+	mds_res_note_rc_t *result,
+	lwfs_request_t *req) 
+{ 
+	return clnt_send_N(MDS_GETATTR, obj, cap, result, req);
+}
+
+
+/** 
+ * @brief Set the attributes of an object.
+ *
+ * @param obj the object.
+ * @param newattr the new attributes.
+ * @param cap the capability that allows us set the attributes.
+ * @param result the new object attributes (or null)
+ * @param request the lwfs_request data structure for the operation.
+ */
+lwfs_return_code_t mds_setattr(
+		lwfs_obj_ref_t *obj, 
+		lwfs_cap_t *cap,
+		mds_opaque_data_t *newattr, 
+		mds_res_note_rc_t *result,
+		lwfs_request_t *req)
+{ 
+	/* ==== obj, attr */
+	return LWFS_ERR_NOTSUPP;
+}
+
+
+/**
+ * @brief Get the access-control list for an container/op pair.
+ *
+ * Returns a list of users that have the a particular type 
+ * of access to an object. 
+ *
+ * @param cid  the container id.
+ * @param op   the operation (i.e., read, write, ...)
+ * @param cap  the capability that allows us to get the ACL.
+ * @param result  the list of users that have access to the object.
+ * @param request the lwfs_request structure for the operation.
+ */
+lwfs_return_code_t mds_getacl(
+		lwfs_container_id_t *cid,
+		lwfs_op_id_t *op,
+		lwfs_cap_t *cap,
+		mds_aclstat_t *result,
+		lwfs_request_t *req)
+{
+	return LWFS_ERR_NOTSUPP;
+}
+
+
+/**
+ * @brief Modify the access-control list for an container/op pair.
+ *
+ * This method changes the access-control list for a particular
+ * operation on an object.  The arguments include a list of 
+ * users that require access (set) and a list of users that no longer
+ * require access (unset).  To resolve conflicts (if both lists have 
+ * the same user), the implementation first grants access to the 
+ * users in the set list, then remove access from users in the unset
+ * list.
+ *
+ * @param cid   the container id.
+ * @param op    the operation (e.g., read, write, ...).
+ * @param set   the list of users that want access.
+ * @param unset the list of users that do not get access.
+ * @param cap   the capability that allows the user to change the acl.
+ * @param result  the list of users that have access after the operation.
+ * @param request the lwfs_request structure for the operation.
+ *
+ */ 
+lwfs_return_code_t mds_modacl(
+		lwfs_container_id_t *obj,
+		lwfs_op_id_t *op,
+		lwfs_uid_list_t *set,
+		lwfs_uid_list_t *unset,
+		lwfs_cap_t *cap,
+		mds_aclstat_t *result,
+		lwfs_request_t *req)
+{
+	return LWFS_ERR_NOTSUPP;
+}

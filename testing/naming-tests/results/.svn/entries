@@ -1,0 +1,41 @@
+8
+
+dir
+1573
+svn+ssh://raoldfi@software.sandia.gov/home/raoldfi/repos/lwfs/trunk/testing/naming-tests/results
+svn+ssh://raoldfi@software.sandia.gov/home/raoldfi/repos/lwfs
+
+
+
+2007-01-23T05:06:53.534601Z
+1073
+raoldfi
+has-props
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+385ae4e5-3006-0410-94d9-fca899295522
+
+Makefile.am
+file
+
+
+
+
+2007-01-23T05:05:36.000000Z
+0bb8ec95ba1fcb986aec2c7c8f2061f1
+2007-01-23T05:06:53.534601Z
+1073
+raoldfi
+has-props
+

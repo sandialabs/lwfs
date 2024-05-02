@@ -1,0 +1,10 @@
+option "len" - "The size of an input buffer" int default="1" optional
+option "debug" - "Debug flag" off flag optional
+option "count" - "The number of experiments" int default="1" optional
+option "num-reqs" - "The number of reqs/trial" int default="1" optional
+option "result-file" - "Where to store results" string optional
+option "result-file-mode" - "Write mode for the result"
+	values="w","a" default="a" optional
+option "server" - "Flag that identifies the server process" off flag optional
+option "server-nid" - "The network ID of the server" longlong default="0" optional
+option "server-pid" - "The process ID of the server" int default="128" optional

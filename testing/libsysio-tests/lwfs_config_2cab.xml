@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<lwfs>
+  <config>
+	<authr>
+		<server-id nid="1032" pid="124"/>
+	</authr>
+	<naming>
+		<server-id nid="1035" pid="126"/>
+		<namespace name="sysio.test"/>
+	</naming>
+	<storage>
+		<server-list>
+			<server-id nid="1036" pid="122"/>
+			<server-id nid="1039" pid="122"/>
+		</server-list>
+		<chunk-size default="1048576"/>
+	</storage>
+  </config>
+</lwfs>

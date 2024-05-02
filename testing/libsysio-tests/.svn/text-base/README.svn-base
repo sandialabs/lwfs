@@ -1,0 +1,100 @@
+
+Linux -----
+
+Tests for libsysio.  To get them to use LWFS, you have to set 
+the SYSIO_NAMESPACE environment variable.  For example, if the
+config file for LWFS is a local file named "lwfs_config.xml", use
+the following... 
+
+% export SYSIO_NAMESPACE="{mnt,dev=\"lwfs:/\",dir=/,fl=2,da=lwfs_config.xml}"
+
+
+
+-----------------------
+REDSTORM CONFIGURATION 
+-----------------------
+
+The easiest way to configure LWFS for catamount nodes is with automount.
+
+
+ 1) Copy /etc/sysio_init to ${HOME}/etc/sysio_init (or wherever you want)
+
+
+ 2) Add the following to the end of the new sysio_init:
+    
+    # Create a directory called /lwfs
+    {creat, ft=dir,nm="/lwfs",pm=04777,ow=0,gr=0} 
+
+    # Create a file named "/lwfs/.mount" with contents "lwfs:/<SOURCE>\\ <LWFS_CONFIG_FILE>"
+    {creat, ft=file,nm="/lwfs/.mount",pm=0644,str="lwfs:/\\ lwfs_config.xml"}
+
+ 3) Set YOD_SYSIO_INIT to point to sysio_init file.
+    
+    % export YOD_SYSIO_INIT=${HOME}/software/etc/sysio_init
+
+
+ 4) Create an lwfs_config.xml file that looks something like this 
+    (replace with appropriate nid/pid)values)...
+
+    ---
+    <?xml version="1.0"?>
+	<lwfs>
+	    <config>
+		<authr>
+		    <server-id nid="1032" pid="124"/>
+		</authr>
+		<naming>
+		    <server-id nid="1035" pid="126"/>
+		    <namespace name="sysio.test"/>
+		</naming>
+		<storage>
+		    <server-list>
+			<server-id nid="1036" pid="122"/>
+			<server-id nid="1039" pid="122"/>
+		    </server-list>
+		    <chunk-size default="1048576"/>
+		</storage>
+	    </config>
+	</lwfs>
+    --- 
+
+	
+ 4) Optional environment variables
+	# Used a fixed container for all files
+	LWFS_FILE_CID
+
+	# Log LWFS events
+	LWFS_LOG_LEVEL={0-5}
+
+	# File for log
+	LWFS_LOG_FILE={stderr,stdout,<path>}
+
+	# Override automount settings
+	SYSIO_NAMESPACE2="{mnt,dev=\"lwfs:<SOURCE>\",dir=/lwfs,fl=2,da=<CONFIG_FILE>}
+
+
+---------------------------------------
+Linking external catamount code to LWFS
+---------------------------------------
+
+
+
+Add the following to the LDFLA line of the makefile. The first part provides a
+path to the LWFS library directory. The second part (critical) forces the
+compiler to include the pre-main code that installs the libsysio driver for
+lwfs. 
+
+    LDFLAGS = -L<PATH_TO_LWFS_LIBDIR> -u _lwfs_premain
+
+Link the lwfs_client and lwfs_sysio libraries to the catamount binary. 
+
+    LDADD = -llwfs_sysio -llwfs_client
+
+For example, I installed the LWFS client libraries in 
+/home/raoldfi/software/lwfs/cnos/lib.  To compile a simple 
+test_cat (concatenation) code, I used the following:
+
+    % cc --target=catamount test_cat.c -o test_cat \
+	    -L/home/raoldfi/software/lwfs/cnos/lib \
+	    -u _lwfs_premain -llwfs_client -llwfs_sysio
+
